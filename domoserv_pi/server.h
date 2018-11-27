@@ -3,8 +3,8 @@
 
 #include <QObject>
 #include <QtNetwork>
-#include <QWebSocket>
-#include <QWebSocketServer>
+//#include <QWebSocket>
+//#include <QWebSocketServer>
 
 class Server : public QObject
 {
@@ -31,7 +31,7 @@ private:
 
     QTcpServer *server;
     QList<QTcpSocket*> usersList;
-    int dataSize;
+    quint16 dataSize;
     QString password;
     QString PKEY;
 };

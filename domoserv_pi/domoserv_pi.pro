@@ -1,9 +1,13 @@
 QT += core
 QT -= gui
 QT += network
-QT += websockets
+QT += sql
+#QT += websockets
 
 CONFIG += c++11
+
+LIBS += -I/Home/osboxes/raspi/sysroot/usr/local/include -L/Home/osboxes/raspi/sysroot/usr/local/lib -lwiringPi
+INCLUDEPATH+= /Home/osboxes/raspi/sysroot/usr/local/lib
 
 TARGET = domoserv_pi
 CONFIG += console
@@ -31,3 +35,4 @@ HEADERS += \
     cvorder.h \
     server.h \
     interface.h
+

@@ -24,16 +24,15 @@ Server::Server()
 
     //Run server
     if(StartServer())
-        printf("[  OK  ] Server started\n");
+        printf("[\033[0;32m  OK  \033[0m] Server started\n");
     else
-        printf("[FAILED]starting server failed\n");
+        printf("[\033[0;31mFAILED\033[0m]starting server failed\n");
 }
 
 bool Server::StartServer()
 {
     server = new QTcpServer;
     bool ret = server->listen(QHostAddress::Any,12120);
-    QWebSocket ;
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
     return ret;
 }
@@ -77,7 +76,10 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     QDataStream out(&paquet, QIODevice::WriteOnly);
 
     out << (quint16) 0;
-    out << Encrypt(data);
+    if(data == PKEY)
+        out << data;
+    else
+        out << Encrypt(data);
     out.device()->seek(0);
     out << (quint16) (paquet.size() - sizeof(quint16));
 
@@ -97,7 +99,6 @@ void Server::ReceiptData()
     {
         if(socket->bytesAvailable() < (int)sizeof(quint16))
              return;
-
         in >> dataSize;
     }
 
@@ -106,7 +107,7 @@ void Server::ReceiptData()
 
     QString data;
     in >> data;
-
+    qDebug() << "receipt data from user " << Decrypt(data);
     if(!usersList.contains(socket))
         AddUserToList(socket,data);
     else
