@@ -1,38 +1,62 @@
 #include "server.h"
 
+//Version 1.0
+
 Server::Server()
 {
-    printf("Starting server\n");
+    #define className "Serveur"
+
+    QSqlQuery req;
+    req.exec("SELECT * FROM General WHERE Name='Port'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM General");
+        req.next();
+        int id = req.value(0).toInt();
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','','','','')");
+    }
+}
+
+void Server::Init()
+{
+    emit Info(className,"Starting server");
     dataSize = 0;
 
     //Password
-    QFile f("config.conf");
-    f.open(QIODevice::ReadOnly);
-    QTextStream data(&f);
-    while(!data.atEnd())
-    {
-        QString var = data.readLine();
-        if(var.contains("SERVER_PASSWORD"))
-            password = var.split("=").last();
-    }
-    f.close();
-    printf("Password = " + password.toLatin1() + "\n");
+    QSqlQuery req;
+    req.exec("SELECT Value1 FROM General WHERE Name='Password'");
+    req.next();
+    password = req.value(0).toString();
+    emit Info(className,"Password = " + password.toLatin1() + "");
 
     //PKEY
     GeneratePKEY();
-    printf("PKEY generated : " + PKEY.toLatin1() + "\n");
+    emit Info(className,"PKEY generated : " + PKEY.toLatin1() + "");
+
+    //Port
+    req.exec("SELECT Value1 FROM General WHERE Name='Port'");
+    req.next();
+    emit Info(className,"Port = " + req.value(0).toString());
 
     //Run server
     if(StartServer())
-        printf("[\033[0;32m  OK  \033[0m] Server started\n");
+        emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
     else
-        printf("[\033[0;31mFAILED\033[0m]starting server failed\n");
+        emit Info(className,"[\033[0;31mFAILED\033[0m]starting server failed");
 }
 
 bool Server::StartServer()
 {
     server = new QTcpServer;
-    bool ret = server->listen(QHostAddress::Any,12120);
+    QSqlQuery req;
+    req.exec("SELECT Value1 FROM General WHERE Name='Port'");
+    req.next();
+    bool ret = server->listen(QHostAddress::Any,req.value(0).toInt());
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
     return ret;
 }
@@ -40,16 +64,17 @@ bool Server::StartServer()
 void Server::NewConnexion()
 {
     QTcpSocket *newCo = server->nextPendingConnection();
+
     connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
     connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
-    printf("New user connected(" + newCo->peerAddress().toString().toLatin1() + ")\n");
+    emit Info(className,"New user connected(" + newCo->peerAddress().toString().toLatin1() + ")");
 }
 
 void Server::Disconnect()
 {
     QTcpSocket *co = qobject_cast<QTcpSocket *>(sender());
     usersList.removeOne(co);
-    printf("User disconnected(" + co->peerAddress().toString().toLatin1() + ")\n");
+    emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
 }
 
 void Server::SendToAll(QString data)
@@ -75,6 +100,7 @@ void Server::SendToUser(QTcpSocket *user, QString data)
 
     QDataStream out(&paquet, QIODevice::WriteOnly);
 
+    emit Info(className,"Send Data to user " + data);
     out << (quint16) 0;
     if(data == PKEY)
         out << data;
@@ -82,38 +108,41 @@ void Server::SendToUser(QTcpSocket *user, QString data)
         out << Encrypt(data);
     out.device()->seek(0);
     out << (quint16) (paquet.size() - sizeof(quint16));
-
-    user->write(paquet);
 }
 
 void Server::ReceiptData()
 {
-    QTcpSocket *socket = qobject_cast<QTcpSocket *>(sender());
-
-    if (socket == 0)
-        return;
-
-    QDataStream in(socket);
-
-    if(dataSize == 0)
+    QTcpSocket *socket;
+qDebug() << "Receipt";
+    while(socket)
     {
-        if(socket->bytesAvailable() < (int)sizeof(quint16))
-             return;
-        in >> dataSize;
+        socket = qobject_cast<QTcpSocket *>(sender());
+
+        if (socket == 0)
+            return;
+
+        QDataStream in(socket);
+
+        if(dataSize == 0)
+        {
+            if(socket->bytesAvailable() < (int)sizeof(quint16))
+                 return;
+            in >> dataSize;
+        }
+
+        if(socket->bytesAvailable() < dataSize)
+            return;
+
+        QString data;
+        in >> data;
+        emit Info(className,"receipt data from user " + Decrypt(data));
+        if(!usersList.contains(socket))
+            AddUserToList(socket,data);
+        else
+            emit Receipt(socket,Decrypt(data));
+
+        dataSize = 0;
     }
-
-    if(socket->bytesAvailable() < dataSize)
-        return;
-
-    QString data;
-    in >> data;
-    qDebug() << "receipt data from user " << Decrypt(data);
-    if(!usersList.contains(socket))
-        AddUserToList(socket,data);
-    else
-        emit Receipt(socket,Decrypt(data));
-
-    dataSize = 0;
 }
 
 void Server::AddUserToList(QTcpSocket *socket, QString data)
@@ -122,12 +151,12 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     {
         usersList.append(socket);
         SendToUser(socket,PKEY);
-        printf("New user accepted\n");
+        emit Info(className,"New user accepted");
     }
     else
     {
         socket->close();
-        printf("New user refused\n");
+        emit Info(className,"New user refused");
     }
 }
 

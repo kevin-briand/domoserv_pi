@@ -5,6 +5,10 @@
 #include <cvorder.h>
 #include <server.h>
 #include <QtNetwork>
+#include <iostream>
+#include <QKeyEvent>
+
+#define className "General"
 
 class Interface : public QObject
 {
@@ -12,9 +16,15 @@ class Interface : public QObject
 public:
     Interface();
     bool Test();
+    void Init();
 
 public slots:
-    void pong(quint64 msec);
+    void ShowInfo(QString classText,QString text);
+    void ReceiptDataFromServer(QTcpSocket *user, QString data);
+
+private:
+    CVOrder *cvOrder;
+    Server *server;
 };
 
 #endif // INTERFACE_H

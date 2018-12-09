@@ -3,14 +3,18 @@
 
 #include <QObject>
 #include <QtNetwork>
+#include <QSqlQuery>
 //#include <QWebSocket>
 //#include <QWebSocketServer>
+
+
 
 class Server : public QObject
 {
     Q_OBJECT
 public:
     Server();
+    void Init();
     bool StartServer();
     void SendToAll(QString data);
     void SendToUser(QTcpSocket *user, QString data);
@@ -23,6 +27,7 @@ private slots:
 
 signals:
     void Receipt(QTcpSocket *client, QString data);
+    void Info(QString classname, QString text);
 
 private:
     QString Encrypt(QString text);

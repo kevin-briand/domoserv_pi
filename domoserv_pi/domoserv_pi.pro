@@ -1,5 +1,5 @@
 QT += core
-QT -= gui
+QT += gui
 QT += network
 QT += sql
 #QT += websockets
