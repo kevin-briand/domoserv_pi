@@ -35,6 +35,29 @@ void CVOrder::Init()
         else
             emit Info(className,"[\033[0;31mFAILED\033[0m] Rows not created ");
     }
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM CVOrder");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        int test = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','0','0','','')");
+        id++;
+        int test2 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','1','1','','')");
+        id++;
+        int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','2','2','','')");
+        id++;
+        int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','3','3','','')");
+        id++;
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','4','1','','')");
+
+        if(test && test2 && test3 && test4 && test5)
+            emit Info(className,"[\033[0;32m  OK  \033[0m] GPIO Rows created ");
+        else if(test || test2 || test3 || test4 || test5)
+            emit Info(className,"[\033[0;33m  OK  \033[0m] GPIO Rows created ");
+        else
+            emit Info(className,"[\033[0;31mFAILED\033[0m] GPIO Rows not created ");
+    }
 
 
     //Init WiringPi
@@ -441,6 +464,7 @@ void CVOrder::NextProgram(int zone)
                  QString::number(_CVStateZ2) + "' WHERE Name='ActualZ2'");
     }
     emit Info(className,"Next prog in zone " + QString::number(zone+1).toLatin1() + " in " + QString::number(tSec).toLatin1() + " secondes");
+    emit Info(className,"DEBUG : " + QString::number(tDay) + " " + QString::number(tHour) + " " + QString::number(tMinute));
 }
 
 void CVOrder::AddProg(int zone, int state, QString date)

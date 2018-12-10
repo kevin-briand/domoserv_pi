@@ -12,8 +12,7 @@ Server::Server()
     {
         req.exec("SELECT MAX(ID) FROM General");
         req.next();
-        int id = req.value(0).toInt();
-        id++;
+        int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','','','','')");
@@ -108,12 +107,13 @@ void Server::SendToUser(QTcpSocket *user, QString data)
         out << Encrypt(data);
     out.device()->seek(0);
     out << (quint16) (paquet.size() - sizeof(quint16));
+
+    user->write(paquet);
 }
 
 void Server::ReceiptData()
 {
     QTcpSocket *socket;
-qDebug() << "Receipt";
     while(socket)
     {
         socket = qobject_cast<QTcpSocket *>(sender());
@@ -165,9 +165,9 @@ void Server::GeneratePKEY()
     srand(QTime::currentTime().msec());
     QString key;
 
-    for(int i = 0;i<20;i++)
+    for(int i = 0;i<50;i++)
     {
-        key.append(QString::number(rand() % 300) + " ");
+        key.append(QString::number(rand() % 250) + " ");
     }
     key.remove(key.count()-1,key.count()-1);
     PKEY = key;

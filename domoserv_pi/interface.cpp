@@ -174,11 +174,11 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'");
                 }
-                else if(ddata.last().contains("GETPassword"))
+                else if(ddata.last().contains("SETPassword"))
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'");
                 }
-                else if(ddata.last().contains("GETWebSocket"))
+                else if(ddata.last().contains("SETWebSocket"))
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'");
                 }
