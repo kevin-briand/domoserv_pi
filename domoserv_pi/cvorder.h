@@ -10,20 +10,9 @@ extern "C" {
 #include <QProcess>
 }
 
-//State
-#define ON  0
-#define OFF 1
-
 //Zone
 #define Z1  0
 #define Z2  1
-
-//Digital IO
-#define Z1ECO   0
-#define Z1HG    1
-#define Z2ECO   2
-#define Z2HG    3
-
 
 enum order{
     confort,
@@ -50,11 +39,12 @@ class CVOrder : public QObject
     Q_OBJECT
 public:
     CVOrder();
+    void Reload();
     void Init();
     void ChangeOrder(int order, int zone);
     void InitProg();
     void AddProg(int zone, int state, QString date);
-    void RemoveProg(int zone, QString date);
+    void RemoveProg(int zone, QString date = 0);
     void SetPriority(int priority);
     void SetProg(QString date, int zone, int state);
     QString GetProg();
@@ -63,6 +53,8 @@ public:
     void RemoveIp(QString ip);
     void SetTimerNetwork(int timer);
     int GetGPIO(int pin);
+    void SetGPIO(int pin, int newPin);
+    void ReverseGPIO(bool reverse);
 
 private slots:
     void ReceiptDataFromUser(QTcpSocket *user, QString data);
@@ -81,7 +73,13 @@ private:
     QTimer _timerZ1;
     QTimer _timerZ2;
     QTimer _timerPing;
-    int _priority;
+    int _priority = 0;
+    int _z1Eco = 0;
+    int _z1Hg = 1;
+    int _z2Eco = 2;
+    int _z2Hg = 3;
+    int _on = 1;
+    int _off = 0;
 };
 
 #endif // CVORDER_H

@@ -14,6 +14,7 @@ class Server : public QObject
     Q_OBJECT
 public:
     Server();
+    void Reload();
     void Init();
     bool StartServer();
     void SendToAll(QString data);

@@ -45,9 +45,8 @@ void Interface::Init()
     QSqlQuery req;
     bool ret = req.exec("CREATE TABLE General ('ID' SMALLINT, 'Name' TEXT, 'Value1' TEXT, 'Value2' TEXT, 'Value3' TEXT, 'Value4' TEXT)");
     if(ret)
-        ShowInfo(className,"[\033[0;32m  OK  \033[0m] Table created ");
-    if(ret)
     {
+        ShowInfo(className,"[\033[0;32m  OK  \033[0m] Table created ");
         req.exec("SELECT MAX(ID) FROM General");
         req.next();
         int id = req.value(0).toInt()+1;
@@ -98,21 +97,21 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
             if(ddata.last().contains("CVOrder"))
             {
                 //GET
-                if(ddata.last().contains("GETProg"))
+                if(ddata.last().contains(";GETProg"))
                 {//Format : Config|CVOrder;GETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
                     QString result;
                     result = "Config|CVOrder;GETProg";
                     result += cvOrder->GetProg();
                     server->SendToUser(user,result);
                 }
-                else if(ddata.last().contains("GETConfig"))
+                else if(ddata.last().contains(";GETConfig"))
                 {//Format : Config|CVOrder;GETConfig;conf1=value1;conf2=value2
                     QString result;
                     result = "Config|CVOrder;GETConfig";
                     result += cvOrder->GetConfig();
                     server->SendToUser(user,result);
                 }
-                else if(ddata.last().contains("GPIO"))
+                else if(ddata.last().contains(";GPIO"))
                 {
                     QString result = "Config|CVOrder;GPIO;";
 
@@ -125,7 +124,7 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                     server->SendToUser(user,result);
                 }
                 //SET
-                else if(ddata.last().contains("SETProg"))
+                else if(ddata.last().contains(";SETProg"))
                 {//Format : Config|CVOrder;SETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
                     QStringList result = ddata.last().split(";");
                     result.removeFirst();
@@ -135,7 +134,11 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                         cvOrder->SetProg(result.at(i).split("#").at(0),result.at(i).split("#").at(1).toInt(),result.at(i).split("#").at(2).toInt());
                     }
                 }
-                else if(ddata.last().contains("SETConfig"))
+                else if(ddata.last().contains(";DELProg"))
+                {//Format : Config|CVOrder;DELProg
+                    cvOrder->RemoveProg(0);
+                }
+                else if(ddata.last().contains(";SETConfig"))
                 {//Format : Config|CVOrder;SETConfig;Conf1=Value1
                     if(ddata.last().split(";").last().contains("Priority"))
                         cvOrder->SetPriority(ddata.last().split(";").last().split("=").last().toInt());
@@ -145,6 +148,23 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                         cvOrder->AddIp(ddata.last().split(";").last().split("=").last());
                     else if(ddata.last().split(";").last().contains("timerNetwork"))
                         cvOrder->SetTimerNetwork(ddata.last().split(";").last().split("=").last().toInt());
+                }
+                else if(ddata.last().contains(";SETGPIO"))
+                {
+                    QStringList result = ddata.last().split(";");
+                    for(int i=0;i<result.count();i++)
+                    {//Format : Config|CVOrder;SETGPIO;Z1Eco=pin;Z1HG=pin2
+                        if(result.at(i).contains("Z1Eco="))
+                            cvOrder->SetGPIO(Z1Eco,result.at(i).split("=").last().toInt());
+                        else if(result.at(i).contains("Z1HG="))
+                            cvOrder->SetGPIO(Z1Hg,result.at(i).split("=").last().toInt());
+                        else if(result.at(i).contains("Z2Eco="))
+                            cvOrder->SetGPIO(Z2Eco,result.at(i).split("=").last().toInt());
+                        else if(result.at(i).contains("Z2HG="))
+                            cvOrder->SetGPIO(Z2Hg,result.at(i).split("=").last().toInt());
+                        else if(result.at(i).contains("ReverseOnOff="))
+                            cvOrder->ReverseGPIO(result.at(i).split("=").last().toInt());
+                    }
                 }
             }
             //Server
@@ -186,9 +206,12 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
         }
         else if(ddata.at(0) == "Reload")
         {
-            Init();
-            server->Init();
-            cvOrder->Init();
+            server->Reload();
+
+            req.exec("SELECT * FROM General WHERE Name='CVOrder'");
+            req.next();
+            if(req.value("Value1").toBool())
+                cvOrder->Reload();
         }
     }
 }

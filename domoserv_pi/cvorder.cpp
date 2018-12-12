@@ -8,6 +8,21 @@ CVOrder::CVOrder()
     #define className "chauffage"
 }
 
+void CVOrder::Reload()
+{
+    _timerZ1.stop();
+    _timerZ2.stop();
+    _on = 1;
+    _off = 0;
+    _z1Eco = 0;
+    _z1Hg = 1;
+    _z2Eco = 2;
+    _z2Hg = 3;
+    _priority = 0;
+
+    Init();
+}
+
 void CVOrder::Init()
 {
     //Create Database
@@ -60,16 +75,49 @@ void CVOrder::Init()
     }
 
 
+    //define GPIO
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
+    while(req.next())
+    {
+        switch (req.value("Value1").toInt()) {
+        case Z1Eco:
+            _z1Eco = req.value("Value2").toInt();
+            break;
+        case Z1Hg:
+            _z1Hg = req.value("Value2").toInt();
+            break;
+        case Z2Eco:
+            _z2Eco = req.value("Value2").toInt();
+            break;
+        case Z2Hg:
+            _z2Hg = req.value("Value2").toInt();
+            break;
+        case ReverseOnOff:
+            if(req.value("Value2").toInt() == 1)
+            {
+                _off = 1;
+                _on = 0;
+            }
+            else
+            {
+                _off = 0;
+                _on = 1;
+            }
+            break;
+        }
+    }
+
+
     //Init WiringPi
     if(wiringPiSetup() < 0)
         emit Info(className,"[\033[0;31mFAILED\033[0m] wiringPi not started");
     else
     {
         //Init pins
-        pinMode(Z1ECO,OUTPUT);
-        pinMode(Z1HG,OUTPUT);
-        pinMode(Z2ECO,OUTPUT);
-        pinMode(Z2HG,OUTPUT);
+        pinMode(_z1Eco,OUTPUT);
+        pinMode(_z1Hg,OUTPUT);
+        pinMode(_z2Eco,OUTPUT);
+        pinMode(_z2Hg,OUTPUT);
 
         ResetOutputState();
 
@@ -251,15 +299,15 @@ void CVOrder::ChangeOrder(int order,int zone)
     if(zone == Z1)
     {
         zoneSelect = "zone 1";
-        SetOutputState(Z1ECO,OFF);
-        SetOutputState(Z1HG,OFF);
+        SetOutputState(_z1Eco,_off);
+        SetOutputState(_z1Hg,_off);
 
         switch(order) {
         case eco:
-            output = Z1ECO;
+            output = _z1Eco;
             break;
         case horsGel:
-            output = Z1HG;
+            output = _z1Hg;
         }
 
         switch(_CVStateZ1) {
@@ -278,15 +326,15 @@ void CVOrder::ChangeOrder(int order,int zone)
     else if(zone == Z2)
     {
         zoneSelect = "zone 2";
-        SetOutputState(Z2ECO,OFF);
-        SetOutputState(Z2HG,OFF);
+        SetOutputState(_z2Eco,_off);
+        SetOutputState(_z2Hg,_off);
 
         switch(order) {
         case eco:
-            output = Z2ECO;
+            output = _z2Eco;
             break;
         case horsGel:
-            output = Z2HG;
+            output = _z2Hg;
         }
 
         switch(_CVStateZ2) {
@@ -324,7 +372,7 @@ void CVOrder::ChangeOrder(int order,int zone)
 
     //Set Output
     if(order != confort)
-        SetOutputState(output,ON);
+        SetOutputState(output,_on);
 
     if(nameNewOrder.isEmpty())
         emit Info(className,"order change error");
@@ -345,10 +393,10 @@ void CVOrder::ReceiptDataFromUser(QTcpSocket *user, QString data)
 
 void CVOrder::ResetOutputState()
 {
-    SetOutputState(Z1ECO,OFF);
-    SetOutputState(Z2ECO,OFF);
-    SetOutputState(Z1HG,OFF);
-    SetOutputState(Z2HG,OFF);
+    SetOutputState(_z1Eco,_off);
+    SetOutputState(_z2Eco,_off);
+    SetOutputState(_z1Hg,_off);
+    SetOutputState(_z2Hg,_off);
 }
 
 void CVOrder::InitProg()
@@ -506,12 +554,24 @@ void CVOrder::AddProg(int zone, int state, QString date)
     int id = req.value(0).toInt()+1;
     req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
     emit Info(className,"add prog " + date.toLatin1() + " set " + nameOrder.toLatin1() + " in zone " + QString::number(zone+1).toLatin1());
-}void CVOrder::RemoveProg(int zone, QString date)
+}
+
+void CVOrder::RemoveProg(int zone, QString date)
 {
     QSqlQuery req;
-    req.exec("DELETE FROM CVOrder WHERE Value2='" + QString::number(zone) + "' AND Name='Prog' AND Value1='" + date + "'");
-    emit Info(className,"remove prog " + date.toLatin1() + " in zone " + QString::number(zone+1).toLatin1());
-}bool CVOrder::PingNetwork()
+    if(date.isEmpty())
+    {
+        req.exec("DELETE FROM CVOrder WHERE Name='Prog'");
+        emit Info(className,"remove all prog in zone 1 and zone 2");
+    }
+    else
+    {
+        req.exec("DELETE FROM CVOrder WHERE Value2='" + QString::number(zone) + "' AND Name='Prog' AND Value1='" + date + "'");
+        emit Info(className,"remove prog " + date.toLatin1() + " in zone " + QString::number(zone+1).toLatin1());
+    }
+}
+
+bool CVOrder::PingNetwork()
 {
     QProcess proc;
     QSqlQuery req;
@@ -540,7 +600,8 @@ void CVOrder::AddProg(int zone, int state, QString date)
 void CVOrder::SetProg(QString date, int zone, int state)
 {
     if(date.split("-").count() == 3 && date.split(":").count() == 2)
-        if(date.split("-").at(0) == "2018" && date.split("-").at(1) == "01" && date.split("-").at(2).toInt() > 0 && date.split("-").at(2).toInt() < 8)
+        if(date.split("-").at(0) == "2018" && date.split("-").at(1) == "01" &&
+                date.split("-").at(2).split(" ").first().toInt() > 0 && date.split("-").at(2).split(" ").first().toInt() < 8)
             if(zone >= 0 && zone <= 1)
                 if(state >= 0 && state <= 2)
                 {
@@ -587,7 +648,7 @@ QString CVOrder::GetConfig()
     req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
     req.next();
     result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
-    result += "NetworkTimer=" + req.value("Value2").toString() + ";";
+    result += ";NetworkTimer=" + req.value("Value2").toString() + ";";
 
     req.exec("SELECT * FROM CVOrder WHERE Name='IpPing'");
     while(req.next())
@@ -601,9 +662,10 @@ void CVOrder::SetPriority(int priority)
     if(priority >= 0 && priority <= 2)
     {
         QSqlQuery req;
-        req.exec("UPDATE FROM CVOrder SET Value1='" + QString::number(priority) + "' WHERE Name='Priority'");
+        req.exec("UPDATE CVOrder SET Value1='" + QString::number(priority) + "' WHERE Name='Priority'");
+        _priority = priority;
+        emit Info(className,"Priority set to " + QString::number(priority));
     }
-    _priority = priority;
 }
 
 void CVOrder::AddIp(QString ip)
@@ -649,7 +711,7 @@ void CVOrder::SetTimerNetwork(int timer)
         return;
     }
     QSqlQuery req;
-    req.exec("UPDATE FROM CVOrder SET Value2='" + QString::number(timer*1000) + "' WHERE Name='Act_Network'");
+    req.exec("UPDATE CVOrder SET Value2='" + QString::number(timer*1000) + "' WHERE Name='Act_Network'");
     emit Info(className,"timerNetwork set to " + QString::number(timer));
 }
 
@@ -661,4 +723,42 @@ int CVOrder::GetGPIO(int pin)
         emit Info(className,"GPIO pin not defined");
     else
         return req.value(0).toInt();
+}
+
+void CVOrder::SetGPIO(int pin,int newPin)
+{
+    QSqlQuery req;
+    if(pin >= 0 && pin <= 3)
+    {
+        if(newPin >= 0 && newPin <= 27)
+        {
+            if(req.exec("UPDATE CVOrder SET Value2='" + QString::number(newPin) + "' WHERE Name='GPIO' AND Value1='" + QString::number(newPin) + "'"))
+                emit Info(className,"GPIO pin " + QString::number(pin) + " set to " + QString::number(newPin));
+            else
+                emit Info(className,"GPIO pin change failed");
+        }
+        else
+            emit Info(className,"GPIO newPin out of range");
+    }
+    else
+        emit Info(className,"GPIO pin out of range");
+}
+
+void CVOrder::ReverseGPIO(bool reverse)
+{
+    if(reverse < 0 || reverse > 1)
+    {
+        emit Info(className,"Reverse GPIO out of range");
+        return;
+    }
+
+    QString result("0");
+    if(reverse)
+        result = "1";
+
+    QSqlQuery req;
+    if(req.exec("UPDATE CVOrder SET Value2='" + result + "' WHERE Name='GPIO' AND Value1='" + QString::number(ReverseOnOff) + "'"))
+        emit Info(className,"GPIO Reverse On <-> Off set to true");
+    else
+        emit Info(className,"GPIO Reverse On <-> Off set to false");
 }

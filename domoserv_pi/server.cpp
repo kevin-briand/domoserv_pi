@@ -21,6 +21,25 @@ Server::Server()
     }
 }
 
+void Server::Reload()
+{
+    for(int i=0;i<usersList.count();i++)
+    {
+        usersList.at(i)->disconnectFromHost();
+        usersList.at(i)->waitForDisconnected();
+        usersList.at(i)->deleteLater();
+    }
+    usersList.clear();
+    dataSize = 0;
+    password.clear();
+    PKEY.clear();
+
+    server->close();
+    server->deleteLater();
+
+    Init();
+}
+
 void Server::Init()
 {
     emit Info(className,"Starting server");
