@@ -2,7 +2,7 @@ QT += core
 QT += gui
 QT += network
 QT += sql
-#QT += websockets
+QT += websockets
 
 CONFIG += c++11
 

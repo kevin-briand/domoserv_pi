@@ -5,6 +5,7 @@
 #include <cvorder.h>
 #include <server.h>
 #include <QtNetwork>
+#include <stdio.h>
 #include <iostream>
 #include <QKeyEvent>
 

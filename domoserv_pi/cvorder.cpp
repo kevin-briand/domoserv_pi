@@ -1,6 +1,6 @@
 #include "cvorder.h"
 
-//Version 1.0
+//Version 1.01
 //ADD abs
 
 CVOrder::CVOrder()
@@ -10,8 +10,8 @@ CVOrder::CVOrder()
 
 void CVOrder::Reload()
 {
-    _timerZ1.stop();
-    _timerZ2.stop();
+    _timerZ1->stop();
+    _timerZ2->stop();
     _on = 1;
     _off = 0;
     _z1Eco = 0;
@@ -74,6 +74,10 @@ void CVOrder::Init()
             emit Info(className,"[\033[0;31mFAILED\033[0m] GPIO Rows not created ");
     }
 
+    //
+    _timerZ1 = new QTimer;
+    _timerZ2 = new QTimer;
+    _timerPing = new QTimer;
 
     //define GPIO
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
@@ -125,11 +129,11 @@ void CVOrder::Init()
     }
 
 
-    connect(&_timerZ1,SIGNAL(timeout()),&_timerZ1,SLOT(stop()));
-    connect(&_timerZ2,SIGNAL(timeout()),&_timerZ2,SLOT(stop()));
-    connect(&_timerZ1,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
-    connect(&_timerZ2,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
-    connect(&_timerPing,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
+    connect(_timerZ1,SIGNAL(timeout()),_timerZ1,SLOT(stop()));
+    connect(_timerZ2,SIGNAL(timeout()),_timerZ2,SLOT(stop()));
+    connect(_timerZ1,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
+    connect(_timerZ2,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
+    connect(_timerPing,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     //Init Prog
     emit Info(className,"Initialisation programmation...");
     InitProg();
@@ -145,33 +149,45 @@ void CVOrder::RunChangeOrder()
     static int lastStateZ1 = 0;
     static int lastStateZ2 = 0;
 
+    QTimer *t = qobject_cast<QTimer*>(sender());
+
+    if(!t)
+        return;
+
     switch (_priority) {
     case horloge://------------------------------
-        if(!_timerZ1.isActive())
+        if(_timerZ1 == t)
         {
-            int state = _timerZ1.property("state").toInt();
+            int state = _timerZ1->property("state").toInt();
             ChangeOrder(state,Z1);
             NextProgram(Z1);
         }
-        if(!_timerZ2.isActive())
+        if(_timerZ2 == t)
         {
-            int state = _timerZ2.property("state").toInt();
+            int state = _timerZ2->property("state").toInt();
             ChangeOrder(state,Z2);
             NextProgram(Z2);
         }
         break;
     case network://---------------------------
-        if(!_timerZ1.isActive())//__________Z1
+        if(_timerPing == t)
         {
-            lastStateZ1 = _timerZ1.property("state").toInt();
+            if(PingNetwork())
+                ChangeOrder(confort,Z1);
+            else
+                ChangeOrder(eco,Z1);
+        }
+        if(_timerZ1 == t)//__________Z1
+        {
+            lastStateZ1 = _timerZ1->property("state").toInt();
             if(lastStateZ1 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
-                    _timerPing.setSingleShot(false);
-                    _timerPing.start(req.value("Value2").toInt());
+                    _timerPing->setSingleShot(false);
+                    _timerPing->start(req.value("Value2").toInt());
                 }
                 else
                     emit Info(className,tr("_timerPing not started(Act_Network not found)"));
@@ -179,29 +195,21 @@ void CVOrder::RunChangeOrder()
             else
             {
                 ChangeOrder(lastStateZ1,Z1);
-                _timerPing.stop();
+                _timerPing->stop();
             }
             NextProgram(Z1);
         }
-        else if(lastStateZ1 == confort && _timerPing.isActive())
+        if(_timerZ2 == t)//__________Z2
         {
-            if(PingNetwork())
-                ChangeOrder(confort,Z1);
-            else
-                ChangeOrder(eco,Z1);
-        }
-
-        if(!_timerZ2.isActive())//__________Z2
-        {
-            lastStateZ2 = _timerZ2.property("state").toInt();
+            lastStateZ2 = _timerZ2->property("state").toInt();
             if(lastStateZ2 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
-                    _timerPing.setSingleShot(false);
-                    _timerPing.start(req.value("Value2").toInt());
+                    _timerPing->setSingleShot(false);
+                    _timerPing->start(req.value("Value2").toInt());
                 }
                 else
                     emit Info(className,tr("_timerPing not started(Act_Network not found)"));
@@ -209,30 +217,35 @@ void CVOrder::RunChangeOrder()
             else
             {
                 ChangeOrder(lastStateZ2,Z2);
-                _timerPing.stop();
+                _timerPing->stop();
             }
             NextProgram(Z2);
         }
-        else if(lastStateZ2 == confort && _timerPing.isActive())
-        {
-            if(PingNetwork())
-                ChangeOrder(confort,Z2);
-            else
-                ChangeOrder(eco,Z2);
-        }
         break;
     case networkAndHorloge://-----------------------------
-        if(!_timerZ1.isActive())//__________Z1
+        if(_timerPing == t)
         {
-            lastStateZ1 = _timerZ1.property("state").toInt();
+            if(PingNetwork())
+            {
+                if(lastStateZ1 == confort)
+                    ChangeOrder(confort,Z1);
+                if(lastStateZ2 == confort)
+                    ChangeOrder(confort,Z2);
+                _timerPing->stop();
+            }
+        }
+        if(_timerZ1 == t)//__________Z1
+        {
+            lastStateZ1 = _timerZ1->property("state").toInt();
             if(lastStateZ1 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
-                    _timerPing.setSingleShot(false);
-                    _timerPing.start(req.value("Value2").toInt());
+                    _timerPing->setSingleShot(false);
+                    _timerPing->start(req.value("Value2").toInt());
+                    emit Info(className,tr("_timerPing started"));
                 }
                 else
                     emit Info(className,tr("_timerPing not started(Act_Network not found)"));
@@ -240,30 +253,22 @@ void CVOrder::RunChangeOrder()
             else
             {
                 ChangeOrder(lastStateZ1,Z1);
-                _timerPing.stop();
+                _timerPing->stop();
             }
             NextProgram(Z1);
         }
-        else if(lastStateZ1 == confort && _timerPing.isActive())
-        {
-            if(PingNetwork())
-            {
-                ChangeOrder(confort,Z1);
-                _timerPing.stop();
-            }
-        }
 
-        if(!_timerZ2.isActive())//__________Z2
+        if(_timerZ2 == t)//__________Z2
         {
-            lastStateZ2 = _timerZ2.property("state").toInt();
+            lastStateZ2 = _timerZ2->property("state").toInt();
             if(lastStateZ2 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
-                    _timerPing.setSingleShot(false);
-                    _timerPing.start(req.value("Value2").toInt());
+                    _timerPing->setSingleShot(false);
+                    _timerPing->start(req.value("Value2").toInt());
                     emit Info(className,tr("_timerPing started"));
                 }
                 else
@@ -272,17 +277,9 @@ void CVOrder::RunChangeOrder()
             else
             {
                 ChangeOrder(lastStateZ2,Z2);
-                _timerPing.stop();
+                _timerPing->stop();
             }
             NextProgram(Z2);
-        }
-        else if(lastStateZ2 == confort && _timerPing.isActive())
-        {
-            if(PingNetwork())
-            {
-                ChangeOrder(confort,Z2);
-                _timerPing.stop();
-            }
         }
         break;
     default:
@@ -352,7 +349,7 @@ void CVOrder::ChangeOrder(int order,int zone)
     }
     else
     {
-        emit Info(className,"Error bad zone " + QString::number(zone).toLatin1());
+        emit Info(className,"Error bad zone " + QString::number(zone+1).toLatin1());
       return;
     }
 
@@ -449,7 +446,7 @@ void CVOrder::NextProgram(int zone)
 
     QSqlQuery req;
     QStringList fDate;
-    req.exec("SELECT * FROM CVOrder WHERE Value1 > '" + actual.toString("yyyy-MM-dd hh:mm") + "' AND Value2='" + QString::number(zone) + "' ORDER BY Value1 ASC");
+    req.exec("SELECT * FROM CVOrder WHERE Value1 > '" + actual.toString("yyyy-MM-dd hh:mm") + "' AND Name='Prog' AND Value2='" + QString::number(zone) + "' ORDER BY Value1 ASC");
     if(req.next())
     {
         fDate.append(req.value("Value1").toString());
@@ -457,7 +454,7 @@ void CVOrder::NextProgram(int zone)
     }
     else
     {
-        req.exec("SELECT * FROM CVOrder WHERE Value2='" + QString::number(zone) + "' ORDER BY Value1 ASC");
+        req.exec("SELECT * FROM CVOrder WHERE Value2='" + QString::number(zone) + "' AND Name='Prog' ORDER BY Value1 ASC");
         if(req.next())
         {
             fDate.append(req.value("Value1").toString());
@@ -466,8 +463,8 @@ void CVOrder::NextProgram(int zone)
     }
     if(fDate.isEmpty())
     {
-        emit Info(className,"no prog found in zone " + QString::number(zone).toLatin1());
-      return;
+        emit Info(className,"no prog found in zone " + QString::number(zone+1).toLatin1());
+        return;
     }
 
     //Day
@@ -494,20 +491,23 @@ void CVOrder::NextProgram(int zone)
         tHour--;
     }
 
+    if(tDay == 0 && tHour < 0)
+        tDay = 7;
+
     //Total in secondes
     int tSec = ((tDay * 24 + tHour) * 60 + tMinute) * 60;
 
     if(zone == Z1)
     {
-        _timerZ1.setProperty("state",fDate.at(1).toInt());
-        _timerZ1.start(tSec * 1000);
+        _timerZ1->setProperty("state",fDate.at(1).toInt());
+        _timerZ1->start(tSec * 1000);
         req.exec("UPDATE FROM CVOrder SET Value1='" + fDate.at(0) + "', Value2='" + QString::number(zone) + "',Value3='" + fDate.at(1) + "',Value4='" +
                  QString::number(_CVStateZ1) + "' WHERE Name='ActualZ1'");
     }
     else if(zone == Z2)
     {
-        _timerZ2.setProperty("state",fDate.at(1).toInt());
-        _timerZ2.start(tSec * 1000);
+        _timerZ2->setProperty("state",fDate.at(1).toInt());
+        _timerZ2->start(tSec * 1000);
         req.exec("UPDATE FROM CVOrder SET Value1='" + fDate.at(0) + "', Value2='" + QString::number(zone) + "',Value3='" + fDate.at(1) + "',Value4='" +
                  QString::number(_CVStateZ2) + "' WHERE Name='ActualZ2'");
     }
@@ -517,12 +517,12 @@ void CVOrder::NextProgram(int zone)
 
 void CVOrder::AddProg(int zone, int state, QString date)
 {
-    if(state < 0 && state > 2)
+    if(state < 0 || state > 2)
     {
         emit Info(className,"add prog failed(bad state)");
         return;
     }
-    else if(zone < 0 && zone > 1)
+    else if(zone < 0 || zone > 1)
     {
         emit Info(className,"add prog failed(bad zone)");
         return;
@@ -723,6 +723,7 @@ int CVOrder::GetGPIO(int pin)
         emit Info(className,"GPIO pin not defined");
     else
         return req.value(0).toInt();
+    return -1;
 }
 
 void CVOrder::SetGPIO(int pin,int newPin)
@@ -746,12 +747,6 @@ void CVOrder::SetGPIO(int pin,int newPin)
 
 void CVOrder::ReverseGPIO(bool reverse)
 {
-    if(reverse < 0 || reverse > 1)
-    {
-        emit Info(className,"Reverse GPIO out of range");
-        return;
-    }
-
     QString result("0");
     if(reverse)
         result = "1";

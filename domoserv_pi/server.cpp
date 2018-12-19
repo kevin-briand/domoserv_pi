@@ -1,10 +1,15 @@
 #include "server.h"
 
-//Version 1.0
+//Version 1.01
 
 Server::Server()
 {
     #define className "Serveur"
+
+    server = new QTcpServer;
+    connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
+    connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
 
     QSqlQuery req;
     req.exec("SELECT * FROM General WHERE Name='Port'");
@@ -25,18 +30,24 @@ void Server::Reload()
 {
     for(int i=0;i<usersList.count();i++)
     {
+        emit Info(className,"Force disconnect user");
         usersList.at(i)->disconnectFromHost();
-        usersList.at(i)->waitForDisconnected();
-        usersList.at(i)->deleteLater();
     }
     usersList.clear();
+    for (int i=0;i<webUsersList.count();i++) {
+        emit Info(className,"Force disconnect web user");
+        webUsersList.at(i)->close();
+    }
+    webUsersList.clear();
     dataSize = 0;
     password.clear();
+    webPassword.clear();
     PKEY.clear();
 
+    emit Info(className,"Closing server...");
     server->close();
-    server->deleteLater();
-
+    webServer->close();
+    emit Info(className,"Server closed");
     Init();
 }
 
@@ -45,16 +56,17 @@ void Server::Init()
     emit Info(className,"Starting server");
     dataSize = 0;
 
+    //Server
     //Password
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Password'");
     req.next();
     password = req.value(0).toString();
-    emit Info(className,"Password = " + password.toLatin1() + "");
+    emit Info(className,"Password = " + password + "");
 
     //PKEY
     GeneratePKEY();
-    emit Info(className,"PKEY generated : " + PKEY.toLatin1() + "");
+    emit Info(className,"PKEY generated : " + PKEY + "");
 
     //Port
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
@@ -66,6 +78,34 @@ void Server::Init()
         emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
     else
         emit Info(className,"[\033[0;31mFAILED\033[0m]starting server failed");
+
+
+
+    //WebServer
+    req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
+    req.next();
+    if(req.value(0).toInt() == 1)
+    {
+        emit Info(className,"Starting Web Socket");
+
+        webPassword = req.value(0).toString();
+        emit Info(className,"Web Password = " + webPassword.toLatin1() + "");
+        //webPassword
+        req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
+        req.next();
+        webPassword = req.value(0).toString();
+        emit Info(className,"Web Password = " + webPassword + "");
+
+        //Port
+        req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
+        req.next();
+        emit Info(className,"Web Port = " + req.value(0).toString() + "");
+
+        if(StartWebServer())
+            emit Info(className,"[\033[0;32m  OK  \033[0m] Web Socket started");
+        else
+            emit Info(className,"[\033[0;31mFAILED\033[0m]starting Web Socket failed");
+    }
 }
 
 bool Server::StartServer()
@@ -74,9 +114,7 @@ bool Server::StartServer()
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
     req.next();
-    bool ret = server->listen(QHostAddress::Any,req.value(0).toInt());
-    connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
-    return ret;
+    return server->listen(QHostAddress::Any,req.value(0).toInt());
 }
 
 void Server::NewConnexion()
@@ -118,33 +156,39 @@ void Server::SendToUser(QTcpSocket *user, QString data)
 
     QDataStream out(&paquet, QIODevice::WriteOnly);
 
-    emit Info(className,"Send Data to user " + data);
-    out << (quint16) 0;
+    quint16 empty(0);
+    out << empty;
+
     if(data == PKEY)
         out << data;
     else
         out << Encrypt(data);
-    out.device()->seek(0);
-    out << (quint16) (paquet.size() - sizeof(quint16));
 
-    user->write(paquet);
+    out.device()->seek(0);
+    //out << (quint16) (paquet.size() - sizeof(quint16));
+
+    quint16* sizePaquet = reinterpret_cast<quint16*>(paquet.size());
+     sizePaquet -= sizeof(quint16);
+     out << sizePaquet;
+
+     user->write(paquet);
 }
 
 void Server::ReceiptData()
 {
-    QTcpSocket *socket;
+    QTcpSocket *socket = new QTcpSocket;
     while(socket)
     {
         socket = qobject_cast<QTcpSocket *>(sender());
 
-        if (socket == 0)
+        if (!socket)
             return;
 
         QDataStream in(socket);
 
         if(dataSize == 0)
         {
-            if(socket->bytesAvailable() < (int)sizeof(quint16))
+            if(socket->bytesAvailable() < reinterpret_cast<uint>(sizeof(quint16)))
                  return;
             in >> dataSize;
         }
@@ -154,7 +198,7 @@ void Server::ReceiptData()
 
         QString data;
         in >> data;
-        emit Info(className,"receipt data from user " + Decrypt(data));
+
         if(!usersList.contains(socket))
             AddUserToList(socket,data);
         else
@@ -177,6 +221,60 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         socket->close();
         emit Info(className,"New user refused");
     }
+}
+
+bool Server::StartWebServer()
+{
+    QSqlQuery req;
+    req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
+    req.next();
+    return webServer->listen(QHostAddress::Any,req.value(0).toInt());
+}
+
+void Server::NewWebConnexion()
+{
+    if(webServer->hasPendingConnections())
+    {
+        QWebSocket *socket = webServer->nextPendingConnection();
+        connect(socket,&QWebSocket::binaryMessageReceived,this,&Server::ReceiptMessage);
+        connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
+
+        emit Info(className,"New Web user connected(" + socket->peerAddress().toString() + ")");
+    }
+}
+
+void Server::WebDisconnect()
+{
+    QWebSocket *socket = webServer->nextPendingConnection();
+    emit Info(className,"Web user disconnected(" + socket->peerAddress().toString() + ")");
+    webUsersList.removeOne(socket);
+    socket->deleteLater();
+}
+
+void Server::ReceiptMessage(QByteArray text)
+{
+    QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
+    if(socket)
+    {
+        if(!webUsersList.contains(socket))
+        {
+            if(text == webPassword)
+            {
+                webUsersList.append(socket);
+                socket->sendTextMessage(PKEY);
+                emit Info(className,"new Web user accepted(" + socket->peerAddress().toString() + ")");
+            }
+            else
+            {
+                socket->close();
+                emit Info(className,"new Web user refused(" + socket->peerAddress().toString() + ")");
+            }
+        }
+        else {
+            emit WebReceipt(socket,Decrypt(QString(text)));
+        }
+    }
+
 }
 
 void Server::GeneratePKEY()

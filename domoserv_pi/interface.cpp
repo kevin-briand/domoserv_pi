@@ -50,13 +50,14 @@ void Interface::Init()
         req.exec("SELECT MAX(ID) FROM General");
         req.next();
         int id = req.value(0).toInt()+1;
-        int test = req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')");
     }
 }
 
 void Interface::ShowInfo(QString classText, QString text)
 {
-    printf(QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm:ss").toLatin1() + " " + classText.toLatin1() + "\t" + text.toLatin1() + "\n");
+    QString result = QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm:ss") + " " + classText + "\t" + text + "\n";
+    std::cout << result.toStdString();
 }
 
 void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)

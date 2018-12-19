@@ -5,10 +5,15 @@
 #include <QtNetwork>
 #include <QSqlDatabase>
 #include <QSqlQuery>
-extern "C" {
-#include </usr/local/include/wiringPi.h>
+
+#if WIN32
+    #include <../../../wiringPi-HEAD-8d188fa/wiringPi/wiringPi.h>
+#else
+    #include </usr/local/include/wiringPi.h>
+#endif
+
 #include <QProcess>
-}
+
 
 //Zone
 #define Z1  0
@@ -70,9 +75,9 @@ private:
     void SetOutputState(int digitalIO,int state);
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
-    QTimer _timerZ1;
-    QTimer _timerZ2;
-    QTimer _timerPing;
+    QTimer *_timerZ1;
+    QTimer *_timerZ2;
+    QTimer *_timerPing;
     int _priority = 0;
     int _z1Eco = 0;
     int _z1Hg = 1;
