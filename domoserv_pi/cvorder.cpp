@@ -19,6 +19,10 @@ void CVOrder::Reload()
     _z2Eco = 2;
     _z2Hg = 3;
     _priority = 0;
+    _StatusZ1 = 0;
+    _StatusZ2 = 0;
+    _CVStateZ1 = 0;
+    _CVStateZ2 = 0;
 
     Init();
 }
@@ -73,11 +77,22 @@ void CVOrder::Init()
         else
             emit Info(className,"[\033[0;31mFAILED\033[0m] GPIO Rows not created ");
     }
+    req.exec("SELECT * FROM CVOrder WHERE Name='StatusZ1'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM CVOrder");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ1','0','','','')");
+        id++;
+        req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ2','0','','','')");
+    }
 
     //
     _timerZ1 = new QTimer;
     _timerZ2 = new QTimer;
     _timerPing = new QTimer;
+    _abs = new QTimer;
 
     //define GPIO
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
@@ -134,6 +149,7 @@ void CVOrder::Init()
     connect(_timerZ1,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_timerZ2,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_timerPing,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
+    connect(_abs,SIGNAL(timeout()),this,SLOT(Reload()));
     //Init Prog
     emit Info(className,"Initialisation programmation...");
     InitProg();
@@ -349,8 +365,8 @@ void CVOrder::ChangeOrder(int order,int zone)
     }
     else
     {
-        emit Info(className,"Error bad zone " + QString::number(zone+1).toLatin1());
-      return;
+        emit Info(className,"Error bad zone " + QString::number(zone+1));
+        return;
     }
 
     switch(order) {
@@ -364,17 +380,18 @@ void CVOrder::ChangeOrder(int order,int zone)
         nameNewOrder = "Hors gel";
         break;
     default:
-        break;
+        emit Info(className,"Error bad order " + QString::number(order));
+        return;
     }
 
     //Set Output
     if(order != confort)
         SetOutputState(output,_on);
 
-    if(nameNewOrder.isEmpty())
-        emit Info(className,"order change error");
-    else
-        emit Info(className,"Change order " + nameActualOrder.toLatin1() + " to " + nameNewOrder.toLatin1() + " in " + zoneSelect.toLatin1());
+    QSqlQuery req;
+    req.exec("UPDATE CVOrder SET Value1='" + QString::number(order) + "' WHERE Name='ActualZ" + QString::number(zone+1) + "'");
+
+    emit Info(className,"Change order " + nameActualOrder.toLatin1() + " to " + nameNewOrder.toLatin1() + " in " + zoneSelect.toLatin1());
 }
 
 void CVOrder::ReceiptDataFromUser(QTcpSocket *user, QString data)
@@ -410,10 +427,28 @@ void CVOrder::InitProg()
     req.exec("SELECT * FROM CVOrder WHERE Name='Priority'");
     if(req.next())
         _priority = req.value("Value1").toInt();
+    req.exec("SELECT * FROM CVOrder WHERE Name='StatusZ1'");
+    if(req.next())
+        _StatusZ1 = req.value("Value1").toInt();
+    req.exec("SELECT * FROM CVOrder WHERE Name='StatusZ2'");
+    if(req.next())
+        _StatusZ2 = req.value("Value1").toInt();
 
 
-    NextProgram(Z1);
-    NextProgram(Z2);
+    if(_StatusZ1 == Automatic)
+        NextProgram(Z1);
+    else {
+        req.exec("SELECT Value4 FROM CVOrder WHERE Name='ActualZ1'");
+        req.next();
+        ChangeOrder(req.value(0).toInt(),Z1);
+    }
+    if(_StatusZ2 == Automatic)
+        NextProgram(Z2);
+    else {
+        req.exec("SELECT Value4 FROM CVOrder WHERE Name='ActualZ2'");
+        req.next();
+        ChangeOrder(req.value(0).toInt(),Z2);
+    }
 }
 
 void CVOrder::NextProgram(int zone)
@@ -513,47 +548,6 @@ void CVOrder::NextProgram(int zone)
     }
     emit Info(className,"Next prog in zone " + QString::number(zone+1).toLatin1() + " in " + QString::number(tSec).toLatin1() + " secondes");
     emit Info(className,"DEBUG : " + QString::number(tDay) + " " + QString::number(tHour) + " " + QString::number(tMinute));
-}
-
-void CVOrder::AddProg(int zone, int state, QString date)
-{
-    if(state < 0 || state > 2)
-    {
-        emit Info(className,"add prog failed(bad state)");
-        return;
-    }
-    else if(zone < 0 || zone > 1)
-    {
-        emit Info(className,"add prog failed(bad zone)");
-        return;
-    }
-    else if(date.split(" ").count() != 2 || date.split("-").count() != 3 || date.split(":").count() != 2)
-    {
-        emit Info(className,"add prog failed(bad date format)");
-        return;
-    }
-
-    QString nameOrder;
-    switch(state) {
-    case confort:
-        nameOrder = "Confort";
-        break;
-    case eco:
-        nameOrder = "Eco";
-        break;
-    case horsGel:
-        nameOrder = "Hors gel";
-        break;
-    default:
-        break;
-    }
-
-    QSqlQuery req;
-    req.exec("SELECT MAX(ID) FROM CVOrder");
-    req.next();
-    int id = req.value(0).toInt()+1;
-    req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
-    emit Info(className,"add prog " + date.toLatin1() + " set " + nameOrder.toLatin1() + " in zone " + QString::number(zone+1).toLatin1());
 }
 
 void CVOrder::RemoveProg(int zone, QString date)
@@ -756,4 +750,100 @@ void CVOrder::ReverseGPIO(bool reverse)
         emit Info(className,"GPIO Reverse On <-> Off set to true");
     else
         emit Info(className,"GPIO Reverse On <-> Off set to false");
+}
+
+int CVOrder::GetOrder(int zone)
+{
+    if(zone == Z1)
+        return _CVStateZ1;
+    else if(zone == Z2)
+        return _CVStateZ2;
+    else
+        return -1;
+}
+
+int CVOrder::GetStatus(int zone)
+{
+    if(zone == Z1)
+        return _StatusZ1;
+    else if(zone == Z2)
+        return _StatusZ2;
+    else 
+        return -1;
+}
+
+void CVOrder::SetOrder(int order, int zone)
+{
+    if(order < 0 || order > 2)
+    {
+        emit Info(className,"SetOrder : order out of range");
+        return;
+    }
+    if(zone < 0 || zone > 1)
+    {
+        emit Info(className,"SetOrder : zone out of range");
+        return;
+    }
+    ChangeOrder(order,zone);
+}
+
+void CVOrder::SetStatus(int status, int zone)
+{
+    if(zone < 0 || zone > 1)
+    {
+        emit Info(className,"SetStatus : zone out of range");
+        return;
+    }
+    if(status < 0 || status > 2)
+    {
+        emit Info(className,"SetStatus : status out of range");
+        return;
+    }
+
+    if(zone == Z1)
+    {
+        _StatusZ1 = status;
+        if(status == Manual)
+            _timerZ1->stop();
+        else if(status == Automatic)
+            NextProgram(Z1);
+    }
+    else if(zone == Z2)
+    {
+        _StatusZ2 = status;
+        if(status == Manual)
+            _timerZ2->stop();
+        else if(status == Automatic)
+            NextProgram(Z2);
+    }
+
+
+    QSqlQuery req;
+    req.exec("UPDATE CVOrder SET Value1='" + QString::number(status) + "' WHERE Name='StatusZ" + QString::number(zone+1) + "'");
+}
+
+void CVOrder::ABS(int day)
+{
+    if(day < 0 || day > 30)
+    {
+        emit Info(className,"ABS : day out of range");
+        return;
+    }
+    int sec = day * 24 * 60 * 60;
+
+    _timerZ1->stop();
+    _timerZ2->stop();
+    _timerPing->stop();
+
+    SetOrder(horsGel,Z1);
+    SetOrder(horsGel,Z2);
+
+    _abs->start(sec * 1000);
+}
+
+int CVOrder::GetABS()
+{
+    if(_abs->remainingTime() == 0)
+        return 0;
+    return _abs->remainingTime() / 1000;
 }

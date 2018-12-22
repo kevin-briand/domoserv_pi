@@ -277,6 +277,14 @@ void Server::ReceiptMessage(QByteArray text)
 
 }
 
+void Server::SendToWebUser(QWebSocket *socket, QString data)
+{
+    if(socket)
+    {
+        socket->sendTextMessage(Encrypt(data));
+    }
+}
+
 void Server::GeneratePKEY()
 {
     srand(QTime::currentTime().msec());

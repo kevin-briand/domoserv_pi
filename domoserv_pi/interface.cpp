@@ -10,6 +10,7 @@ Interface::Interface()
     connect(server,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
     server->Init();
     connect(server,SIGNAL(Receipt(QTcpSocket*,QString)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString)));
+    connect(server, &Server::WebReceipt, this, &Interface::ReceiptDataFromWebServer);
 
     cvOrder = new CVOrder;
     QSqlQuery req;
@@ -74,7 +75,7 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
         QSqlQuery req;
         QStringList ddata = data.split("|");
         if(ddata.at(0) == "CVOrder" && ddata.last().split(";").count() == 2)
-            cvOrder->ChangeOrder(ddata.last().split(";").at(0).toInt(),ddata.last().split(";").at(1).toInt());
+            cvOrder->SetOrder(ddata.last().split(";").at(0).toInt(),ddata.last().split(";").at(1).toInt());
         else if(ddata.at(0) == "Config")
         {
             //General
@@ -214,5 +215,54 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
             if(req.value("Value1").toBool())
                 cvOrder->Reload();
         }
+    }
+}
+
+void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
+{
+    if(data.contains("|")) {
+        if(data.contains("CVOrder")) {
+            if(data.contains("=")) {//Set
+                if(data.contains("SetZ1Order")) {
+                    cvOrder->SetOrder(data.split("=").last().toInt(),Z1);
+                    server->SendToWebUser(user,"GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
+                }
+                else if(data.contains("SetZ2Order")) {
+                    cvOrder->SetOrder(data.split("=").last().toInt(),Z2);
+                    server->SendToWebUser(user,"GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
+                }
+                else if(data.contains("SetZ1Status")) {
+                    cvOrder->SetStatus(data.split("=").last().toInt(),Z1);
+                    server->SendToWebUser(user,"GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                }
+                else if(data.contains("SetZ2Status")) {
+                    cvOrder->SetStatus(data.split("=").last().toInt(),Z2);
+                    server->SendToWebUser(user,"GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
+                }
+                else if(data.contains("ABS")) {
+                    cvOrder->ABS(data.split("=").last().toInt());
+            }
+            }
+            else {//Get
+                if(data.contains("GetZ1Order")) {
+                    server->SendToWebUser(user,"GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
+                }
+                else if(data.contains("GetZ2Order")) {
+                    server->SendToWebUser(user,"GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
+                }
+                else if(data.contains("GetZ1Status")) {
+                    server->SendToWebUser(user,"GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                }
+                else if(data.contains("GetZ2Status")) {
+                    server->SendToWebUser(user,"GetZ2Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                }
+                else if(data.contains("GetABS")) {
+                    server->SendToWebUser(user,"GetABS=" + QString::number(cvOrder->GetABS()));
+                }
+            }
+        }
+    }
+    else {
+        ShowInfo(className,"web data corrupted");
     }
 }

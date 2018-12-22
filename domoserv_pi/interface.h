@@ -22,6 +22,7 @@ public:
 public slots:
     void ShowInfo(QString classText,QString text);
     void ReceiptDataFromServer(QTcpSocket *user, QString data);
+    void ReceiptDataFromWebServer(QWebSocket *user, QString data);
 
 private:
     CVOrder *cvOrder;

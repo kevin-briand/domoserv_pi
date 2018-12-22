@@ -21,7 +21,7 @@ public:
     void SendToUser(QTcpSocket *user, QString data);
 
     bool StartWebServer();
-    void SendToWebUser(QString data);
+    void SendToWebUser(QWebSocket *socket, QString data);
 
 
 private slots:

@@ -39,16 +39,19 @@ enum GPIO{
     ReverseOnOff
 };
 
+enum Status{
+    Automatic,
+    SemiAutomatic,
+    Manual
+};
+
 class CVOrder : public QObject
 {
     Q_OBJECT
 public:
     CVOrder();
-    void Reload();
     void Init();
-    void ChangeOrder(int order, int zone);
     void InitProg();
-    void AddProg(int zone, int state, QString date);
     void RemoveProg(int zone, QString date = 0);
     void SetPriority(int priority);
     void SetProg(QString date, int zone, int state);
@@ -60,6 +63,15 @@ public:
     int GetGPIO(int pin);
     void SetGPIO(int pin, int newPin);
     void ReverseGPIO(bool reverse);
+    int GetOrder(int zone);
+    int GetStatus(int zone);
+    void SetStatus(int status, int zone);
+    void SetOrder(int order, int zone);
+    void ABS(int day);
+    int GetABS();
+
+public slots:
+    void Reload();
 
 private slots:
     void ReceiptDataFromUser(QTcpSocket *user, QString data);
@@ -73,11 +85,15 @@ signals:
 
 private:
     void SetOutputState(int digitalIO,int state);
+    void ChangeOrder(int order, int zone);
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
+    int _StatusZ1 = 0;
+    int _StatusZ2 = 0;
     QTimer *_timerZ1;
     QTimer *_timerZ2;
     QTimer *_timerPing;
+    QTimer *_abs;
     int _priority = 0;
     int _z1Eco = 0;
     int _z1Hg = 1;
