@@ -52,7 +52,7 @@ public:
     CVOrder();
     void Init();
     void InitProg();
-    void RemoveProg(int zone, QString date = 0);
+    void RemoveProg(int zone, QString date = nullptr);
     void SetPriority(int priority);
     void SetProg(QString date, int zone, int state);
     QString GetProg();

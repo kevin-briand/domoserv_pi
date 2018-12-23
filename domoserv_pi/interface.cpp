@@ -242,22 +242,23 @@ void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
 {
     if(data.contains("|")) {
         if(data.contains("CVOrder")) {
+            QString first("CVOrder|");
             if(data.contains("=")) {//Set
                 if(data.contains("SetZ1Order")) {
                     cvOrder->SetOrder(data.split("=").last().toInt(),Z1);
-                    server->SendToWebUser(user,"GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
+                    server->SendToWebUser(user,first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
                 }
                 else if(data.contains("SetZ2Order")) {
                     cvOrder->SetOrder(data.split("=").last().toInt(),Z2);
-                    server->SendToWebUser(user,"GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
+                    server->SendToWebUser(user,first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
                 }
                 else if(data.contains("SetZ1Status")) {
                     cvOrder->SetStatus(data.split("=").last().toInt(),Z1);
-                    server->SendToWebUser(user,"GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                    server->SendToWebUser(user,first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
                 }
                 else if(data.contains("SetZ2Status")) {
                     cvOrder->SetStatus(data.split("=").last().toInt(),Z2);
-                    server->SendToWebUser(user,"GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
+                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
                 }
                 else if(data.contains("ABS")) {
                     cvOrder->ABS(data.split("=").last().toInt());
@@ -265,19 +266,19 @@ void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
             }
             else {//Get
                 if(data.contains("GetZ1Order")) {
-                    server->SendToWebUser(user,"GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
+                    server->SendToWebUser(user,first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
                 }
                 else if(data.contains("GetZ2Order")) {
-                    server->SendToWebUser(user,"GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
+                    server->SendToWebUser(user,first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
                 }
                 else if(data.contains("GetZ1Status")) {
-                    server->SendToWebUser(user,"GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                    server->SendToWebUser(user,first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
                 }
                 else if(data.contains("GetZ2Status")) {
-                    server->SendToWebUser(user,"GetZ2Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z1)));
                 }
                 else if(data.contains("GetABS")) {
-                    server->SendToWebUser(user,"GetABS=" + QString::number(cvOrder->GetABS()));
+                    server->SendToWebUser(user,first + "GetABS=" + QString::number(cvOrder->GetABS()));
                 }
             }
         }
