@@ -24,6 +24,16 @@ Server::Server()
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','','','','')");
     }
+    req.exec("SELECT * FROM General WHERE Name='WebPort'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM General");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPort','49155','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','','','','')");
+    }
 }
 
 void Server::Reload()

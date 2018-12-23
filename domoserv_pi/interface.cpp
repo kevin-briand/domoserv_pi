@@ -1,6 +1,6 @@
 #include "interface.h"
 
-//Version 1.0
+//Version 1.01
 
 Interface::Interface()
 {  
@@ -191,6 +191,18 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                     req.next();
                     server->SendToUser(user,"Config|Server;GETWebSocket;WebSocket=" + req.value("Value1").toString());
                 }
+                if(ddata.last().contains("GETWebPort"))
+                {
+                    req.exec("SELECT * FROM General WHERE Name='WebPort'");
+                    req.next();
+                    server->SendToUser(user,"Config|Server;GETWebPort;WebPort=" + req.value("Value1").toString());
+                }
+                else if(ddata.last().contains("GETWebPassword"))
+                {
+                    req.exec("SELECT * FROM General WHERE Name='WebPassword'");
+                    req.next();
+                    server->SendToUser(user,"Config|Server;GetWebPassword;WebPassword=" + req.value("Value1").toString());
+                }
                 //SET
                 if(ddata.last().contains("SETPort"))
                 {
@@ -203,6 +215,14 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                 else if(ddata.last().contains("SETWebSocket"))
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'");
+                }
+                if(ddata.last().contains("SETWebPort"))
+                {
+                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'");
+                }
+                else if(ddata.last().contains("SETWebPassword"))
+                {
+                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'");
                 }
             }
         }
