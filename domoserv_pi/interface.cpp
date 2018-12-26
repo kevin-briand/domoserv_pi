@@ -88,6 +88,7 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                     req.next();
                     QString result = "Config|General;CVOrder=" + req.value("Value1").toString();
                     server->SendToUser(user,result);
+                    ShowInfo(className,"Send data");
                 }
                 //SET
                 if(ddata.last().contains("SETCVOrder"))
@@ -218,6 +219,7 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                 }
                 if(ddata.last().contains("SETWebPort"))
                 {
+                    ShowInfo(className,"Set WebPort = " + ddata.last().split("=").last());
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'");
                 }
                 else if(ddata.last().contains("SETWebPassword"))
@@ -262,7 +264,8 @@ void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
                 }
                 else if(data.contains("ABS")) {
                     cvOrder->ABS(data.split("=").last().toInt());
-            }
+                    server->SendToWebUser(user,first + "Reload");
+                }
             }
             else {//Get
                 if(data.contains("GetZ1Order")) {

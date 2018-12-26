@@ -32,7 +32,7 @@ private slots:
 
     void NewWebConnexion();
     void WebDisconnect();
-    void ReceiptMessage(QByteArray text);
+    void ReceiptMessage(QString text);
 
 signals:
     void Receipt(QTcpSocket *client, QString data);

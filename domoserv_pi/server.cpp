@@ -8,7 +8,7 @@ Server::Server()
 
     server = new QTcpServer;
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
-    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
     connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
 
     QSqlQuery req;
@@ -58,6 +58,12 @@ void Server::Reload()
     server->close();
     webServer->close();
     emit Info(className,"Server closed");
+
+    server = new QTcpServer;
+    connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
+    connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
+
     Init();
 }
 
@@ -98,8 +104,6 @@ void Server::Init()
     {
         emit Info(className,"Starting Web Socket");
 
-        webPassword = req.value(0).toString();
-        emit Info(className,"Web Password = " + webPassword.toLatin1() + "");
         //webPassword
         req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
         req.next();
@@ -120,7 +124,6 @@ void Server::Init()
 
 bool Server::StartServer()
 {
-    server = new QTcpServer;
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
     req.next();
@@ -175,11 +178,11 @@ void Server::SendToUser(QTcpSocket *user, QString data)
         out << Encrypt(data);
 
     out.device()->seek(0);
-    //out << (quint16) (paquet.size() - sizeof(quint16));
+    out << (quint16) (paquet.size() - sizeof(quint16));
 
-    quint16* sizePaquet = reinterpret_cast<quint16*>(paquet.size());
-     sizePaquet -= sizeof(quint16);
-     out << sizePaquet;
+    //quint64* sizePaquet = reinterpret_cast<quint16*>(paquet.size());
+     //sizePaquet -= sizeof(quint16);
+     //out << sizePaquet;
 
      user->write(paquet);
 }
@@ -246,7 +249,7 @@ void Server::NewWebConnexion()
     if(webServer->hasPendingConnections())
     {
         QWebSocket *socket = webServer->nextPendingConnection();
-        connect(socket,&QWebSocket::binaryMessageReceived,this,&Server::ReceiptMessage);
+        connect(socket,&QWebSocket::textMessageReceived,this,&Server::ReceiptMessage);
         connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
 
         emit Info(className,"New Web user connected(" + socket->peerAddress().toString() + ")");
@@ -255,13 +258,13 @@ void Server::NewWebConnexion()
 
 void Server::WebDisconnect()
 {
-    QWebSocket *socket = webServer->nextPendingConnection();
+    QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
     emit Info(className,"Web user disconnected(" + socket->peerAddress().toString() + ")");
     webUsersList.removeOne(socket);
     socket->deleteLater();
 }
 
-void Server::ReceiptMessage(QByteArray text)
+void Server::ReceiptMessage(QString text)
 {
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
     if(socket)
@@ -276,12 +279,12 @@ void Server::ReceiptMessage(QByteArray text)
             }
             else
             {
-                socket->close();
                 emit Info(className,"new Web user refused(" + socket->peerAddress().toString() + ")");
+                socket->close();
             }
         }
         else {
-            emit WebReceipt(socket,Decrypt(QString(text)));
+            emit WebReceipt(socket,Decrypt(text));
         }
     }
 

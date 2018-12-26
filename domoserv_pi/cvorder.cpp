@@ -831,6 +831,7 @@ void CVOrder::ABS(int day)
     }
     int sec = day * 24 * 60 * 60;
 
+
     _timerZ1->stop();
     _timerZ2->stop();
     _timerPing->stop();
@@ -838,6 +839,7 @@ void CVOrder::ABS(int day)
     SetOrder(horsGel,Z1);
     SetOrder(horsGel,Z2);
 
+    _abs->setSingleShot(true);
     _abs->start(sec * 1000);
 }
 
