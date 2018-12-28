@@ -23,6 +23,8 @@ void CVOrder::Reload()
     _StatusZ2 = 0;
     _CVStateZ1 = 0;
     _CVStateZ2 = 0;
+    _lastStateZ1 = 0;
+    _lastStateZ2 = 0;
 
     Init();
 }
@@ -128,6 +130,7 @@ void CVOrder::Init()
 
 
     //Init WiringPi
+#ifdef ACT_WIRING_PI
     if(wiringPiSetup() < 0)
         emit Info(className,"[\033[0;31mFAILED\033[0m] wiringPi not started");
     else
@@ -142,7 +145,7 @@ void CVOrder::Init()
 
         emit Info(className,"[\033[0;32m  OK  \033[0m] wiringPi started");
     }
-
+#endif
 
     connect(_timerZ1,SIGNAL(timeout()),_timerZ1,SLOT(stop()));
     connect(_timerZ2,SIGNAL(timeout()),_timerZ2,SLOT(stop()));
@@ -157,14 +160,13 @@ void CVOrder::Init()
 
 void CVOrder::SetOutputState(int digitalIO, int state)
 {
-    digitalWrite(digitalIO,state);
+#ifdef ACT_WIRING_PI
+        digitalWrite(digitalIO,state);
+#endif
 }
 
 void CVOrder::RunChangeOrder()
 {
-    static int lastStateZ1 = 0;
-    static int lastStateZ2 = 0;
-
     QTimer *t = qobject_cast<QTimer*>(sender());
 
     if(!t)
@@ -195,8 +197,8 @@ void CVOrder::RunChangeOrder()
         }
         if(_timerZ1 == t)//__________Z1
         {
-            lastStateZ1 = _timerZ1->property("state").toInt();
-            if(lastStateZ1 == confort)
+            _lastStateZ1 = _timerZ1->property("state").toInt();
+            if(_lastStateZ1 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
@@ -210,15 +212,15 @@ void CVOrder::RunChangeOrder()
             }
             else
             {
-                ChangeOrder(lastStateZ1,Z1);
+                ChangeOrder(_lastStateZ1,Z1);
                 _timerPing->stop();
             }
             NextProgram(Z1);
         }
         if(_timerZ2 == t)//__________Z2
         {
-            lastStateZ2 = _timerZ2->property("state").toInt();
-            if(lastStateZ2 == confort)
+            _lastStateZ2 = _timerZ2->property("state").toInt();
+            if(_lastStateZ2 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
@@ -232,7 +234,7 @@ void CVOrder::RunChangeOrder()
             }
             else
             {
-                ChangeOrder(lastStateZ2,Z2);
+                ChangeOrder(_lastStateZ2,Z2);
                 _timerPing->stop();
             }
             NextProgram(Z2);
@@ -243,17 +245,17 @@ void CVOrder::RunChangeOrder()
         {
             if(PingNetwork())
             {
-                if(lastStateZ1 == confort)
+                if(_lastStateZ1 == confort)
                     ChangeOrder(confort,Z1);
-                if(lastStateZ2 == confort)
+                if(_lastStateZ2 == confort)
                     ChangeOrder(confort,Z2);
                 _timerPing->stop();
             }
         }
         if(_timerZ1 == t)//__________Z1
         {
-            lastStateZ1 = _timerZ1->property("state").toInt();
-            if(lastStateZ1 == confort)
+            _lastStateZ1 = _timerZ1->property("state").toInt();
+            if(_lastStateZ1 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
@@ -268,7 +270,7 @@ void CVOrder::RunChangeOrder()
             }
             else
             {
-                ChangeOrder(lastStateZ1,Z1);
+                ChangeOrder(_lastStateZ1,Z1);
                 _timerPing->stop();
             }
             NextProgram(Z1);
@@ -276,8 +278,8 @@ void CVOrder::RunChangeOrder()
 
         if(_timerZ2 == t)//__________Z2
         {
-            lastStateZ2 = _timerZ2->property("state").toInt();
-            if(lastStateZ2 == confort)
+            _lastStateZ2 = _timerZ2->property("state").toInt();
+            if(_lastStateZ2 == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
@@ -292,7 +294,7 @@ void CVOrder::RunChangeOrder()
             }
             else
             {
-                ChangeOrder(lastStateZ2,Z2);
+                ChangeOrder(_lastStateZ2,Z2);
                 _timerPing->stop();
             }
             NextProgram(Z2);
@@ -418,11 +420,53 @@ void CVOrder::InitProg()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='ActualZ1'");
     if(req.next())
-        ChangeOrder(req.value("Value4").toInt(),Z1);
+        _lastStateZ1 = req.value("Value1").toInt();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='ActualZ2'");
-    if(req.next())
-        ChangeOrder(req.value("Value4").toInt(),Z2);
+        _lastStateZ2 = req.value("Value1").toInt();
+
+    //ABS
+    if(_endABS)
+    {
+        QDateTime dt;
+        QString cDay = dt.currentDateTime().toString("ddd");
+        int day(0);
+        if(cDay == "Mon" || cDay == "lun.")
+            day = 1;
+        else if(cDay == "Tue" || cDay == "mar.")
+            day = 2;
+        else if(cDay == "Wed" || cDay == "mer.")
+            day = 3;
+        else if(cDay == "Thu" || cDay == "jeu.")
+            day = 4;
+        else if(cDay == "Fri" || cDay == "ven.")
+            day = 5;
+        else if(cDay == "Sat" || cDay == "sam.")
+            day = 6;
+        else if(cDay == "Sun" || cDay == "dim.")
+            day = 7;
+
+        //find next hour
+        QDate date;
+        date.setDate(2018,1,day);
+        QDateTime actual;
+        actual.setDate(date);
+        actual.setTime(QTime::currentTime());
+
+        //Z1
+        req.exec("SELECT * FROM CVOrder WHERE Value1 < '" + actual.toString("yyyy-MM-dd hh:mm") + "' AND Name='Prog' AND Value2='" + QString::number(Z1) + "' ORDER BY Value1 ASC");
+        while(req.next());
+        if(req.previous())
+            _lastStateZ1 = req.value("Value3").toInt();
+
+        //Z2
+        req.exec("SELECT * FROM CVOrder WHERE Value1 < '" + actual.toString("yyyy-MM-dd hh:mm") + "' AND Name='Prog' AND Value2='" + QString::number(Z2) + "' ORDER BY Value1 ASC");
+        while(req.next());
+        if(req.previous())
+            _lastStateZ2 = req.value("Value3").toInt();
+
+        _endABS = false;
+    }
 
     req.exec("SELECT * FROM CVOrder WHERE Name='Priority'");
     if(req.next())
@@ -436,16 +480,22 @@ void CVOrder::InitProg()
 
 
     if(_StatusZ1 == Automatic)
+    {
         NextProgram(Z1);
+        ChangeOrder(_lastStateZ1,Z1);
+    }
     else {
-        req.exec("SELECT Value4 FROM CVOrder WHERE Name='ActualZ1'");
+        req.exec("SELECT Value1 FROM CVOrder WHERE Name='ActualZ1'");
         req.next();
         ChangeOrder(req.value(0).toInt(),Z1);
     }
     if(_StatusZ2 == Automatic)
+    {
         NextProgram(Z2);
+        ChangeOrder(_lastStateZ2,Z2);
+    }
     else {
-        req.exec("SELECT Value4 FROM CVOrder WHERE Name='ActualZ2'");
+        req.exec("SELECT Value1 FROM CVOrder WHERE Name='ActualZ2'");
         req.next();
         ChangeOrder(req.value(0).toInt(),Z2);
     }
@@ -824,11 +874,17 @@ void CVOrder::SetStatus(int status, int zone)
 
 void CVOrder::ABS(int day)
 {
-    if(day < 0 || day > 30)
+    if(day == 0)
+    {
+        if(!_abs->isActive())
+            return;
+    }
+    else if(day < 1 || day > 30)
     {
         emit Info(className,"ABS : day out of range");
         return;
     }
+
     int sec = day * 24 * 60 * 60;
 
 
@@ -841,6 +897,8 @@ void CVOrder::ABS(int day)
 
     _abs->setSingleShot(true);
     _abs->start(sec * 1000);
+
+    _endABS = true;
 }
 
 int CVOrder::GetABS()

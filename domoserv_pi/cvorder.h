@@ -5,15 +5,12 @@
 #include <QtNetwork>
 #include <QSqlDatabase>
 #include <QSqlQuery>
-
-#if WIN32
-    #include <../../../wiringPi-HEAD-8d188fa/wiringPi/wiringPi.h>
-#else
-    #include </usr/local/include/wiringPi.h>
-#endif
-
 #include <QProcess>
 
+#ifndef Q_OS_WIN
+    #include </usr/local/include/wiringPi.h>
+    #define ACT_WIRING_PI
+#endif
 
 //Zone
 #define Z1  0
@@ -88,6 +85,8 @@ private:
     void ChangeOrder(int order, int zone);
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
+    int _lastStateZ1 = 0;
+    int _lastStateZ2 = 0;
     int _StatusZ1 = 0;
     int _StatusZ2 = 0;
     QTimer *_timerZ1;
@@ -101,6 +100,7 @@ private:
     int _z2Hg = 3;
     int _on = 1;
     int _off = 0;
+    bool _endABS = false;
 };
 
 #endif // CVORDER_H
