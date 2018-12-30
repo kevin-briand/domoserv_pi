@@ -6,7 +6,7 @@ echo Install git
 sudo apt-get install git
 
 echo Clone repo Domoserv_pi
-cd ... || exit
+cd $HOME
 git clone https://github.com/firedream89/domoserv_pi.git
 
 if test -d /usr/local/qt5pi; then
