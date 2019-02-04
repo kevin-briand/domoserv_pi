@@ -8,7 +8,13 @@ Server::Server()
 
     server = new QTcpServer;
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+#ifdef WEBSECURED
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
+#else
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
+#endif
+    qDebug()<<"SSL version use for build: "<<QSslSocket::sslLibraryBuildVersionString();
+    qDebug()<<"SSL version use for run-time: "<<QSslSocket::sslLibraryVersionNumber();
     connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
 
     QSqlQuery req;
@@ -73,21 +79,23 @@ void Server::Init()
     dataSize = 0;
 
     //Server
+    //PKEY
+    GeneratePKEY();
+    emit Info(className,"PKEY generated : " + PKEY + "");
+
     //Password
+    emit Info(className,"------------------Server Info-------------------------");
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Password'");
     req.next();
     password = req.value(0).toString();
     emit Info(className,"Password = " + password + "");
 
-    //PKEY
-    GeneratePKEY();
-    emit Info(className,"PKEY generated : " + PKEY + "");
-
     //Port
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
     req.next();
     emit Info(className,"Port = " + req.value(0).toString());
+    emit Info(className,"------------------------------------------------------");
 
     //Run server
     if(StartServer())
@@ -103,6 +111,7 @@ void Server::Init()
     if(req.value(0).toInt() == 1)
     {
         emit Info(className,"Starting Web Socket");
+        emit Info(className,"------------------Web Server Info---------------------");
 
         //webPassword
         req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
@@ -114,6 +123,7 @@ void Server::Init()
         req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
         req.next();
         emit Info(className,"Web Port = " + req.value(0).toString() + "");
+        emit Info(className,"------------------------------------------------------");
 
         if(StartWebServer())
             emit Info(className,"[\033[0;32m  OK  \033[0m] Web Socket started");
@@ -201,7 +211,7 @@ void Server::ReceiptData()
 
         if(dataSize == 0)
         {
-            if(socket->bytesAvailable() < reinterpret_cast<uint>(sizeof(quint16)))
+            if(socket->bytesAvailable() < (uint)sizeof(quint16))
                  return;
             in >> dataSize;
         }
@@ -238,10 +248,45 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
 
 bool Server::StartWebServer()
 {
+#ifdef WEBSECURED
+        SecureWebSocket();
+#endif
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
     req.next();
     return webServer->listen(QHostAddress::Any,req.value(0).toInt());
+}
+
+void Server::SecureWebSocket()
+{
+#ifdef WEBSECURED
+    QSslConfiguration sslConfiguration;
+    QFile certFile(QStringLiteral("CA/cacert.pem"));
+    QFile keyFile(QStringLiteral("CA/private/cakey.pem"));
+    certFile.open(QIODevice::ReadOnly);
+    keyFile.open(QIODevice::ReadOnly);
+    QSslCertificate certificate(&certFile, QSsl::Pem);
+    QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
+    certFile.close();
+    keyFile.close();
+    sslConfiguration.setPeerVerifyMode(QSslSocket::VerifyNone);
+    sslConfiguration.setLocalCertificate(certificate);
+    sslConfiguration.setPrivateKey(sslKey);
+    sslConfiguration.setProtocol(QSsl::TlsV1SslV3);
+    webServer->setSslConfiguration(sslConfiguration);
+
+    connect(webServer, &QWebSocketServer::sslErrors, this, &Server::SslErrors);
+#endif
+
+}
+
+void Server::SslErrors(const QList<QSslError> &err)
+{
+#ifdef WEBSECURED
+    for (int i = 0;i<err.count();i++) {
+        emit Info(className,"SSL Error : " + err.at(i).errorString());
+    }
+#endif
 }
 
 void Server::NewWebConnexion()
@@ -284,7 +329,11 @@ void Server::ReceiptMessage(QString text)
             }
         }
         else {
-            emit WebReceipt(socket,Decrypt(text));
+            #ifdef WEBSECURED
+                emit WebReceipt(socket,text);
+            #else
+                emit WebReceipt(socket,Decrypt(text));
+            #endif
         }
     }
 
@@ -294,7 +343,11 @@ void Server::SendToWebUser(QWebSocket *socket, QString data)
 {
     if(socket)
     {
-        socket->sendTextMessage(Encrypt(data));
+        #ifdef WEBSECURED
+            socket->sendTextMessage(data);
+        #else
+            socket->sendTextMessage(Encrypt(data));
+        #endif
     }
 }
 

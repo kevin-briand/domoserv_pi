@@ -6,8 +6,8 @@ QT += websockets
 
 CONFIG += c++11
 
-unix:LIBS += -I/Home/osboxes/raspi/sysroot/usr/local/include -L/Home/osboxes/raspi/sysroot/usr/local/lib -lwiringPi
-unix:INCLUDEPATH += /Home/osboxes/raspi/sysroot/usr/local/lib
+unix:LIBS += -L/Home/firedream/raspi/sysroot/usr/lib -lwiringPi
+unix:INCLUDEPATH += /Home/firedream/raspi/sysroot/usr/lib
 
 TARGET = domoserv_pi
 CONFIG += console

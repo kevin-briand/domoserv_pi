@@ -4,6 +4,7 @@
 
 Interface::Interface()
 {  
+
     Init();
 
     server = new Server;
@@ -20,7 +21,7 @@ Interface::Interface()
     {
         connect(cvOrder,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
         cvOrder->Init();
-    }
+    }   
 
     Test();
 
@@ -53,12 +54,34 @@ void Interface::Init()
         int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')");
     }
+    req.exec("SELECT * FROM General WHERE Name='log'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM General");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
+    }
+    req.exec("SELECT Value1 FROM General WHERE Name='log'");
+    req.next();
+    if(req.value(0).toBool())
+        _log = true;
 }
 
 void Interface::ShowInfo(QString classText, QString text)
 {
     QString result = QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm:ss") + " " + classText + "\t" + text + "\n";
     std::cout << result.toStdString();
+
+    if(_log)
+    {
+        QFile f("log");
+        if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
+            std::cout << "fail to open file 'log'\n";
+        else
+            f.write("\n" + result.toLatin1());
+        f.close();
+    }
 }
 
 void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)

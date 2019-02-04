@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <QKeyEvent>
+#include <QFile>
 
 #define className "General"
 
@@ -27,6 +28,7 @@ public slots:
 private:
     CVOrder *cvOrder;
     Server *server;
+    bool _log = false;
 };
 
 #endif // INTERFACE_H

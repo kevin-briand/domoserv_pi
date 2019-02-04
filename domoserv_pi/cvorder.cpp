@@ -423,6 +423,7 @@ void CVOrder::InitProg()
         _lastStateZ1 = req.value("Value1").toInt();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='ActualZ2'");
+    if(req.next())
         _lastStateZ2 = req.value("Value1").toInt();
 
     //ABS

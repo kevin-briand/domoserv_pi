@@ -6,8 +6,11 @@
 #include <QSqlQuery>
 #include <QWebSocket>
 #include <QWebSocketServer>
+#include <QSslCertificate>
+#include <QSslKey>
+#include <QSslError>
 
-
+//#define WEBSECURED
 
 class Server : public QObject
 {
@@ -33,6 +36,7 @@ private slots:
     void NewWebConnexion();
     void WebDisconnect();
     void ReceiptMessage(QString text);
+    void SslErrors(const QList<QSslError> &err);
 
 signals:
     void Receipt(QTcpSocket *client, QString data);
@@ -43,6 +47,7 @@ private:
     QString Encrypt(QString text);
     QString Decrypt(QString text);
     void GeneratePKEY();
+    void SecureWebSocket();
 
     QTcpServer *server;
     QWebSocketServer *webServer;

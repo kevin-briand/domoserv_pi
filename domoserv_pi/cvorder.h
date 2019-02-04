@@ -8,7 +8,7 @@
 #include <QProcess>
 
 #ifndef Q_OS_WIN
-    #include </usr/local/include/wiringPi.h>
+    #include </home/firedream/raspi/sysroot/usr/include/wiringPi/wiringPi.h>
     #define ACT_WIRING_PI
 #endif
 

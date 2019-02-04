@@ -1,0 +1,160 @@
+
+04-02-2019 19:30:15 Serveur	Starting server
+
+04-02-2019 19:30:15 Serveur	PKEY generated : 159 28 248 58 132 37 13 236 27 63 45 60 146 76 191 213 116 135 129 212 79 128 176 196 135 88 141 17 138 199 194 192 226 146 121 236 7 221 3 142 13 13 196 107 80 172 137 6 188 170
+
+04-02-2019 19:30:15 Serveur	------------------Server Info-------------------------
+
+04-02-2019 19:30:15 Serveur	Password = passwd
+
+04-02-2019 19:30:15 Serveur	Port = 50000
+
+04-02-2019 19:30:15 Serveur	------------------------------------------------------
+
+04-02-2019 19:30:15 Serveur	[[0;32m  OK  [0m] Server started
+
+04-02-2019 19:30:15 Serveur	Starting Web Socket
+
+04-02-2019 19:30:15 Serveur	------------------Web Server Info---------------------
+
+04-02-2019 19:30:15 Serveur	Web Password = passwd
+
+04-02-2019 19:30:15 Serveur	Web Port = 52000
+
+04-02-2019 19:30:15 Serveur	------------------------------------------------------
+
+04-02-2019 19:30:15 Serveur	[[0;32m  OK  [0m] Web Socket started
+
+04-02-2019 19:30:15 chauffage	Initialisation programmation...
+
+04-02-2019 19:30:15 chauffage	Next prog in zone 1 in 40500 secondes
+
+04-02-2019 19:30:15 chauffage	DEBUG : 1 -13 15
+
+04-02-2019 19:30:15 chauffage	Change order Confort to Confort in zone 1
+
+04-02-2019 19:30:15 chauffage	Next prog in zone 2 in 576000 secondes
+
+04-02-2019 19:30:15 chauffage	DEBUG : 7 -8 0
+
+04-02-2019 19:30:15 chauffage	Change order Confort to Confort in zone 2
+
+04-02-2019 19:30:20 Serveur	Starting server
+
+04-02-2019 19:30:20 Serveur	PKEY generated : 173 185 14 13 74 115 139 176 143 136 57 19 234 137 51 219 125 17 102 105 118 153 191 68 185 114 61 203 92 89 20 15 80 130 112 19 163 191 185 111 142 118 54 138 111 104 185 174 9 183
+
+04-02-2019 19:30:20 Serveur	------------------Server Info-------------------------
+
+04-02-2019 19:30:20 Serveur	Password = passwd
+
+04-02-2019 19:30:20 Serveur	Port = 50000
+
+04-02-2019 19:30:20 Serveur	------------------------------------------------------
+
+04-02-2019 19:30:20 Serveur	[[0;32m  OK  [0m] Server started
+
+04-02-2019 19:30:20 Serveur	Starting Web Socket
+
+04-02-2019 19:30:20 Serveur	------------------Web Server Info---------------------
+
+04-02-2019 19:30:20 Serveur	Web Password = passwd
+
+04-02-2019 19:30:20 Serveur	Web Port = 52000
+
+04-02-2019 19:30:20 Serveur	------------------------------------------------------
+
+04-02-2019 19:30:20 Serveur	[[0;32m  OK  [0m] Web Socket started
+
+04-02-2019 19:30:20 chauffage	Initialisation programmation...
+
+04-02-2019 19:30:20 chauffage	Next prog in zone 1 in 40500 secondes
+
+04-02-2019 19:30:20 chauffage	DEBUG : 1 -13 15
+
+04-02-2019 19:30:20 chauffage	Change order Confort to Confort in zone 1
+
+04-02-2019 19:30:20 chauffage	Next prog in zone 2 in 576000 secondes
+
+04-02-2019 19:30:20 chauffage	DEBUG : 7 -8 0
+
+04-02-2019 19:30:20 chauffage	Change order Confort to Confort in zone 2
+
+04-02-2019 19:31:12 Serveur	Starting server
+
+04-02-2019 19:31:12 Serveur	PKEY generated : 49 64 200 126 172 12 229 64 34 208 56 176 240 123 211 107 62 249 2 10 44 218 212 51 2 171 62 237 179 226 55 226 197 69 58 46 217 12 236 218 55 2 168 114 41 36 21 118 154 219
+
+04-02-2019 19:31:12 Serveur	------------------Server Info-------------------------
+
+04-02-2019 19:31:12 Serveur	Password = passwd
+
+04-02-2019 19:31:12 Serveur	Port = 50000
+
+04-02-2019 19:31:12 Serveur	------------------------------------------------------
+
+04-02-2019 19:31:12 Serveur	[[0;32m  OK  [0m] Server started
+
+04-02-2019 19:31:12 Serveur	Starting Web Socket
+
+04-02-2019 19:31:12 Serveur	------------------Web Server Info---------------------
+
+04-02-2019 19:31:12 Serveur	Web Password = passwd
+
+04-02-2019 19:31:12 Serveur	Web Port = 52000
+
+04-02-2019 19:31:12 Serveur	------------------------------------------------------
+
+04-02-2019 19:31:12 Serveur	[[0;32m  OK  [0m] Web Socket started
+
+04-02-2019 19:31:12 chauffage	Initialisation programmation...
+
+04-02-2019 19:31:12 chauffage	Next prog in zone 1 in 40440 secondes
+
+04-02-2019 19:31:12 chauffage	DEBUG : 1 -13 14
+
+04-02-2019 19:31:12 chauffage	Change order Confort to Confort in zone 1
+
+04-02-2019 19:31:12 chauffage	Next prog in zone 2 in 575940 secondes
+
+04-02-2019 19:31:12 chauffage	DEBUG : 7 -9 59
+
+04-02-2019 19:31:12 chauffage	Change order Confort to Confort in zone 2
+
+04-02-2019 19:34:19 Serveur	Starting server
+
+04-02-2019 19:34:19 Serveur	PKEY generated : 64 170 61 103 85 193 247 117 221 195 170 203 163 79 216 53 131 97 142 19 246 166 202 237 209 7 241 224 133 19 203 94 235 232 175 141 39 13 70 47 148 18 3 158 12 45 130 1 133 19
+
+04-02-2019 19:34:19 Serveur	------------------Server Info-------------------------
+
+04-02-2019 19:34:19 Serveur	Password = passwd
+
+04-02-2019 19:34:19 Serveur	Port = 50000
+
+04-02-2019 19:34:19 Serveur	------------------------------------------------------
+
+04-02-2019 19:34:19 Serveur	[[0;32m  OK  [0m] Server started
+
+04-02-2019 19:34:19 Serveur	Starting Web Socket
+
+04-02-2019 19:34:19 Serveur	------------------Web Server Info---------------------
+
+04-02-2019 19:34:19 Serveur	Web Password = passwd
+
+04-02-2019 19:34:19 Serveur	Web Port = 52000
+
+04-02-2019 19:34:19 Serveur	------------------------------------------------------
+
+04-02-2019 19:34:19 Serveur	[[0;32m  OK  [0m] Web Socket started
+
+04-02-2019 19:34:19 chauffage	Initialisation programmation...
+
+04-02-2019 19:34:19 chauffage	Next prog in zone 1 in 40260 secondes
+
+04-02-2019 19:34:19 chauffage	DEBUG : 1 -13 11
+
+04-02-2019 19:34:19 chauffage	Change order Confort to Confort in zone 1
+
+04-02-2019 19:34:19 chauffage	Next prog in zone 2 in 575760 secondes
+
+04-02-2019 19:34:19 chauffage	DEBUG : 7 -9 56
+
+04-02-2019 19:34:19 chauffage	Change order Confort to Confort in zone 2
