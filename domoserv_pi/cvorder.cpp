@@ -1,7 +1,6 @@
 #include "cvorder.h"
 
 //Version 1.01
-//ADD abs
 
 CVOrder::CVOrder()
 {
@@ -48,29 +47,29 @@ void CVOrder::Init()
         int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Priority','0','','','')");
         id++;
         int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Act_Network','0','30000','','')");
+        id++;
+        int test5 = req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ1','0','','','')");
+        id++;
+        int test6 = req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ2','0','','','')");
 
-        if(test && test2 && test3 && test4)
+        if(test && test2 && test3 && test4 && test5 && test6)
             emit Info(className,"[\033[0;32m  OK  \033[0m] Rows created ");
-        else if(test || test2 || test3 || test4)
+        else if(test || test2 || test3 || test4 || test5 || test6)
             emit Info(className,"[\033[0;33m  OK  \033[0m] Rows created ");
         else
             emit Info(className,"[\033[0;31mFAILED\033[0m] Rows not created ");
-    }
-    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
-    if(!req.next())
-    {
-        req.exec("SELECT MAX(ID) FROM CVOrder");
-        req.next();
-        int id = req.value(0).toInt()+1;
-        int test = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','0','0','','')");
+
+
         id++;
-        int test2 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','1','1','','')");
+        test = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','0','0','','')");
         id++;
-        int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','2','2','','')");
+        test2 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','1','1','','')");
         id++;
-        int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','3','3','','')");
+        test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','2','2','','')");
         id++;
-        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','4','1','','')");
+        test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','3','3','','')");
+        id++;
+        test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','4','1','','')");
 
         if(test && test2 && test3 && test4 && test5)
             emit Info(className,"[\033[0;32m  OK  \033[0m] GPIO Rows created ");
@@ -78,16 +77,6 @@ void CVOrder::Init()
             emit Info(className,"[\033[0;33m  OK  \033[0m] GPIO Rows created ");
         else
             emit Info(className,"[\033[0;31mFAILED\033[0m] GPIO Rows not created ");
-    }
-    req.exec("SELECT * FROM CVOrder WHERE Name='StatusZ1'");
-    if(!req.next())
-    {
-        req.exec("SELECT MAX(ID) FROM CVOrder");
-        req.next();
-        int id = req.value(0).toInt()+1;
-        req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ1','0','','','')");
-        id++;
-        req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ2','0','','','')");
     }
 
     //

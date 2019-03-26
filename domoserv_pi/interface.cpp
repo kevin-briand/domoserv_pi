@@ -29,6 +29,19 @@ Interface::Interface()
 
 bool Interface::Test()
 {
+#ifdef ACT_WIRING_PI_SPI
+        qDebug() << "INIT WIRINGPI :" << wiringPiSetup();
+        qDebug() << "TEST INIT SPI CHANNEL 0: " << wiringPiSPISetup(0,1000000);
+        unsigned char buffer[100];
+        buffer[0] = 0xFA;
+        qDebug() <<  wiringPiSPIDataRW(0,buffer,100);
+        qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
+
+        qDebug() << "TEST INIT SPI CHANNEL 1: " << wiringPiSPISetup(1,1000000);
+        qDebug() <<  wiringPiSPIDataRW(1,buffer,100);
+        qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
+#endif
+
     return true;
 }
 

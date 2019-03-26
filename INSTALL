@@ -1,0 +1,34 @@
+#!/bin/bash
+
+echo -----Install Domoserv_pi-----
+
+# copy files to usr/local
+if ! test -d /usr/local/qt5pi; then
+echo copie qt5pi to /usr/local
+sudo mkdir /usr/local/qt5pi/
+sudo cp -r qt5pi /usr/local/qt5pi
+fi
+
+# create deamon
+echo install deamon
+sudo cp domoserv_pi.service /lib/systemd/system/domoserv_pi.service
+sudo chmod 644 /lib/systemd/system/domoserv_pi.service
+chmod +x /home/pi/domoserv_pi/domoserv_pi
+sudo systemctl daemon-reload
+sudo systemctl enable domoserv_pi.service
+sudo systemctl start domoserv_pi.service
+
+# install nginx
+#sudo apt-get install nginx -y
+#sudo apt-get install php -y
+
+# configure web folder
+#sudo rm -r /var/www/html
+#sudo mkdir /var/www/html
+#sudo shown pi /var/www/html
+
+# add web files to /var/www
+
+# restart
+echo rebooting
+sudo reboot

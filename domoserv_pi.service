@@ -1,0 +1,11 @@
+[Unit]
+Description=Domoserv_pi
+After=multi-user.target
+ 
+[Service]
+Type=simple
+ExecStart=/home/pi/domoserv_pi
+Restart=on-abort
+ 
+[Install]
+WantedBy=multi-user.target

@@ -10,6 +10,12 @@
 #include <QKeyEvent>
 #include <QFile>
 
+//TEST
+#ifndef Q_OS_WIN
+    #include </home/firedream/raspi/sysroot/usr/include/wiringPi/wiringPiSPI.h>
+    //#define ACT_WIRING_PI_SPI
+#endif
+
 #define className "General"
 
 class Interface : public QObject

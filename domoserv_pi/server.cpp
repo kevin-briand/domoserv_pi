@@ -8,6 +8,8 @@ Server::Server()
 
     server = new QTcpServer;
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+    UserServer = new QTcpServer;
+    connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
 #ifdef WEBSECURED
     webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
 #else
@@ -44,14 +46,14 @@ Server::Server()
 
 void Server::Reload()
 {
-    for(int i=0;i<usersList.count();i++)
+    for(int i=0;i<adminList.count();i++)
     {
-        emit Info(className,"Force disconnect user");
-        usersList.at(i)->disconnectFromHost();
+        emit Info(className,"Forced disconnect user");
+        adminList.at(i)->disconnectFromHost();
     }
-    usersList.clear();
+    adminList.clear();
     for (int i=0;i<webUsersList.count();i++) {
-        emit Info(className,"Force disconnect web user");
+        emit Info(className,"Forced disconnect web user");
         webUsersList.at(i)->close();
     }
     webUsersList.clear();
@@ -142,17 +144,28 @@ bool Server::StartServer()
 
 void Server::NewConnexion()
 {
-    QTcpSocket *newCo = server->nextPendingConnection();
+    while(server->hasPendingConnections())
+    {
+        QTcpSocket *newCo = server->nextPendingConnection();
 
-    connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
-    connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
-    emit Info(className,"New user connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+        connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
+        connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
+        emit Info(className,"New Admin connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+    }
+    while(UserServer->hasPendingConnections())
+    {
+        QTcpSocket *newCo = UserServer->nextPendingConnection();
+
+        connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
+        connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
+        emit Info(className,"New Admin connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+    }
 }
 
 void Server::Disconnect()
 {
     QTcpSocket *co = qobject_cast<QTcpSocket *>(sender());
-    usersList.removeOne(co);
+    adminList.removeOne(co);
     emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
 }
 
@@ -167,9 +180,9 @@ void Server::SendToAll(QString data)
     out.device()->seek(0);
     out << (quint16) (paquet.size() - sizeof(quint16));
 
-    for(int i=0;i<usersList.count();i++)
+    for(int i=0;i<adminList.count();i++)
     {
-        usersList.at(i)->write(paquet);
+        adminList.at(i)->write(paquet);
     }
 }
 
@@ -221,8 +234,8 @@ void Server::ReceiptData()
 
         QString data;
         in >> data;
-
-        if(!usersList.contains(socket))
+        qDebug() << data;
+        if(!adminList.contains(socket))
             AddUserToList(socket,data);
         else
             emit Receipt(socket,Decrypt(data));
@@ -235,7 +248,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
 {
     if(data == password)
     {
-        usersList.append(socket);
+        adminList.append(socket);
         SendToUser(socket,PKEY);
         emit Info(className,"New user accepted");
     }
