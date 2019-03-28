@@ -1,12 +1,15 @@
 #!/bin/bash
-echo -----Install Domoserv_pi-----
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e ${GREEN}-----Install Domoserv_pi-----${NC}
 
 # copy files to usr/local
 if ! test -d /usr/local/qt5pi; then
-echo copie qt5pi to /usr/local
+echo -e ${GREEN}copie qt5pi to /usr/local${NC}
 sudo mkdir /usr/local/qt5pi/
 sudo cp -r qt5pi /usr/local
-echo Création des liens symbolique
+echo -e ${GREEN}Création des liens symbolique${NC}
 sudo ln -s /usr/local/qt5pi/lib/libwiringPi.so.2.46 /usr/local/qt5pi/lib/libwiringPi.so
 sudo ln -s /usr/local/qt5pi/lib/libQt5Gui.so.5.7.1 /usr/local/qt5pi/lib/libQt5Gui.so.5
 sudo ln -s /usr/local/qt5pi/lib/libQt5WebSockets.so.5.7.1 /usr/local/qt5pi/lib/libQt5WebSockets.so.5
@@ -19,10 +22,12 @@ sudo ln -s /usr/local/qt5pi/lib/libEGL.so /usr/local/qt5pi/lib/libEGL.so.1
 sudo ln -s /usr/local/qt5pi/lib/libpcre16.so.3.13.3 /usr/local/qt5pi/lib/libpcre16.so.3
 sudo ln -s /usr/local/qt5pi/lib/libdouble-conversion.so.1.0 /usr/local/qt5pi/lib/libdouble-conversion.so.1
 sudo ln -s /usr/local/qt5pi/lib/libgraphite2.so.3.0.1 /usr/local/qt5pi/lib/libgraphite2.so.3
+sudo chmod +x build/domoserv_pi
+sudo chmod +x UPDATE
 fi
 
 # create deamon
-echo install deamon
+echo -e ${GREEN}install deamon${NC}
 sudo cp domoserv_pi.service /lib/systemd/system/domoserv_pi.service
 sudo chmod 644 /lib/systemd/system/domoserv_pi.service
 chmod +x /home/pi/domoserv_pi/domoserv_pi
@@ -31,5 +36,5 @@ sudo systemctl enable domoserv_pi.service
 sudo systemctl start domoserv_pi.service
 
 # Reboot
-echo rebooting
+echo -e ${GREEN}rebooting${NC}
 sudo reboot

@@ -10,7 +10,7 @@
 #include <QSslKey>
 #include <QSslError>
 
-#define WEBSECURED
+//#define WEBSECURED
 
 class Server : public QObject
 {
@@ -51,9 +51,11 @@ private:
 
     QTcpServer *server;
     QTcpServer *UserServer;
+    QWebSocketServer *webAdminServer;
     QWebSocketServer *webServer;
     QList<QTcpSocket*> adminList;
     QList<QTcpSocket*> usersList;
+    QList<QWebSocket*> webAdminList;
     QList<QWebSocket*> webUsersList;
     quint16 dataSize;
     QString password;

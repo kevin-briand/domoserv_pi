@@ -88,7 +88,7 @@ void Interface::ShowInfo(QString classText, QString text)
 
     if(_log)
     {
-        QFile f("log");
+        QFile f("/home/pi/domoserv_pi.log");
         if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
             std::cout << "fail to open file 'log'\n";
         else

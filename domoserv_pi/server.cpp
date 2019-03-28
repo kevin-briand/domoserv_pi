@@ -12,12 +12,15 @@ Server::Server()
     connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
 #ifdef WEBSECURED
     webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
+    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::SecureMode);
 #else
-    webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
-#endif
     qDebug()<<"SSL version use for build: "<<QSslSocket::sslLibraryBuildVersionString();
     qDebug()<<"SSL version use for run-time: "<<QSslSocket::sslLibraryVersionNumber();
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
+    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
+#endif
     connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
+    connect(webAdminServer,SIGNAL(NewConnexion()),this,SLOT(NewWebConnexion()));
 
     QSqlQuery req;
     req.exec("SELECT * FROM General WHERE Name='Port'");
@@ -31,13 +34,9 @@ Server::Server()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','','','','')");
-    }
-    req.exec("SELECT * FROM General WHERE Name='WebPort'");
-    if(!req.next())
-    {
-        req.exec("SELECT MAX(ID) FROM General");
-        req.next();
-        int id = req.value(0).toInt()+1;
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','','','','')");
+        id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPort','49155','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','','','','')");
@@ -46,17 +45,34 @@ Server::Server()
 
 void Server::Reload()
 {
+    //TCP SERVER
     for(int i=0;i<adminList.count();i++)
     {
-        emit Info(className,"Forced disconnect user");
+        emit Info(className,"Forced disconnect admin");
         adminList.at(i)->disconnectFromHost();
     }
     adminList.clear();
+    //WEB SERVER
+    for(int i=0;i<webAdminList.count();i++)
+    {
+        emit Info(className,"Forced disconnect web admin");
+        webAdminList.at(i)->close();
+    }
+    webAdminList.clear();
+    //TCP SERVER USER
+    for(int i=0;i<usersList.count();i++)
+    {
+        emit Info(className,"Forced disconnect admin");
+        usersList.at(i)->disconnectFromHost();
+    }
+    usersList.clear();
+    //WEB SERVER USER
     for (int i=0;i<webUsersList.count();i++) {
         emit Info(className,"Forced disconnect web user");
         webUsersList.at(i)->close();
     }
     webUsersList.clear();
+    //VARIABLES
     dataSize = 0;
     password.clear();
     webPassword.clear();
@@ -64,13 +80,50 @@ void Server::Reload()
 
     emit Info(className,"Closing server...");
     server->close();
+    webAdminServer->close();
+    UserServer->close();
     webServer->close();
-    emit Info(className,"Server closed");
 
+    //TEST
+    bool test = true;
+    if(server->isListening())
+    {
+        emit Info(className,"Admin Server not closed !");
+        test = false;
+    }
+    if(webAdminServer->isListening())
+    {
+        emit Info(className,"Web Admin Server not closed !");
+        test = false;
+    }
+    if(UserServer->isListening())
+    {
+        emit Info(className,"User Server not closed !");
+        test = false;
+    }
+    if(webServer->isListening())
+    {
+        emit Info(className,"Web User Server not closed !");
+        test = false;
+    }
+    if(test)
+        emit Info(className,"[\033[0;32m  OK  \033[0m] Server closed");
+    else
+        emit Info(className,"[\033[0;31mFAILED\033[0m] Server not closed");
+
+    //INIT SERVER
     server = new QTcpServer;
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+    UserServer = new QTcpServer;
+    connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
+
+#ifdef WEBSECURED
+    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
+    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::SecureMode);
+#else
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
-    connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
+    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
+#endif
 
     Init();
 }
@@ -103,43 +156,43 @@ void Server::Init()
     if(StartServer())
         emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
     else
-        emit Info(className,"[\033[0;31mFAILED\033[0m]starting server failed");
-
-
+        emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
 
     //WebServer
-    req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
+    emit Info(className,"Starting Web Socket");
+    emit Info(className,"------------------Web Server Info---------------------");
+
+    //webPassword
+    req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
     req.next();
-    if(req.value(0).toInt() == 1)
-    {
-        emit Info(className,"Starting Web Socket");
-        emit Info(className,"------------------Web Server Info---------------------");
+    webPassword = req.value(0).toString();
+    emit Info(className,"Web Password = " + webPassword + "");
 
-        //webPassword
-        req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
-        req.next();
-        webPassword = req.value(0).toString();
-        emit Info(className,"Web Password = " + webPassword + "");
+    //Port
+    req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
+    req.next();
+    emit Info(className,"Web Port = " + req.value(0).toString() + "");
+    emit Info(className,"------------------------------------------------------");
 
-        //Port
-        req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
-        req.next();
-        emit Info(className,"Web Port = " + req.value(0).toString() + "");
-        emit Info(className,"------------------------------------------------------");
-
-        if(StartWebServer())
-            emit Info(className,"[\033[0;32m  OK  \033[0m] Web Socket started");
-        else
-            emit Info(className,"[\033[0;31mFAILED\033[0m]starting Web Socket failed");
-    }
+    if(StartWebServer())
+        emit Info(className,"[\033[0;32m  OK  \033[0m] Web Socket started");
+    else
+        emit Info(className,"[\033[0;31mFAILED\033[0m]starting Web Socket failed");
 }
 
 bool Server::StartServer()
-{
+{    
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
     req.next();
-    return server->listen(QHostAddress::Any,req.value(0).toInt());
+    int port = req.value(0).toInt();
+
+    req.exec("SELECT Value1 FROM General WHERE Name='WebAdminSocket'");
+    req.next();
+    if(req.value(0).toInt() == 0)
+        return server->listen(QHostAddress::Any,port);
+    else
+        return webAdminServer->listen(QHostAddress::Any,port);
 }
 
 void Server::NewConnexion()
@@ -158,15 +211,17 @@ void Server::NewConnexion()
 
         connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
         connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
-        emit Info(className,"New Admin connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+        emit Info(className,"New User connected(" + newCo->peerAddress().toString().toLatin1() + ")");
     }
 }
 
 void Server::Disconnect()
 {
     QTcpSocket *co = qobject_cast<QTcpSocket *>(sender());
-    adminList.removeOne(co);
-    emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
+    if(adminList.removeOne(co))
+        emit Info(className,"Admin disconnected(" + co->peerAddress().toString().toLatin1() + ")");
+    else if(usersList.removeOne(co))
+        emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
 }
 
 void Server::SendToAll(QString data)
@@ -237,6 +292,8 @@ void Server::ReceiptData()
         qDebug() << data;
         if(!adminList.contains(socket))
             AddUserToList(socket,data);
+        else if(!usersList.contains(socket))
+            AddUserToList(socket,data);
         else
             emit Receipt(socket,Decrypt(data));
 
@@ -267,7 +324,14 @@ bool Server::StartWebServer()
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
     req.next();
-    return webServer->listen(QHostAddress::Any,req.value(0).toInt());
+    int port = req.value(0).toInt();
+
+    req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
+    req.next();
+    if(req.value(0).toInt() == 1)
+        return webServer->listen(QHostAddress::Any,port);
+    else
+        return UserServer->listen(QHostAddress::Any,port);
 }
 
 void Server::SecureWebSocket()
