@@ -1,12 +1,24 @@
 #!/bin/bash
-
 echo -----Install Domoserv_pi-----
 
 # copy files to usr/local
 if ! test -d /usr/local/qt5pi; then
 echo copie qt5pi to /usr/local
 sudo mkdir /usr/local/qt5pi/
-sudo cp -r qt5pi /usr/local/qt5pi
+sudo cp -r qt5pi /usr/local
+echo Création des liens symbolique
+sudo ln -s /usr/local/qt5pi/lib/libwiringPi.so.2.46 /usr/local/qt5pi/lib/libwiringPi.so
+sudo ln -s /usr/local/qt5pi/lib/libQt5Gui.so.5.7.1 /usr/local/qt5pi/lib/libQt5Gui.so.5
+sudo ln -s /usr/local/qt5pi/lib/libQt5WebSockets.so.5.7.1 /usr/local/qt5pi/lib/libQt5WebSockets.so.5
+sudo ln -s /usr/local/qt5pi/lib/libQt5Network.so.5.7.1 /usr/local/qt5pi/lib/libQt5Network.so.5
+sudo ln -s /usr/local/qt5pi/lib/libQt5Sql.so.5.7.1 /usr/local/qt5pi/lib/libQt5Sql.so.5
+sudo ln -s /usr/local/qt5pi/lib/libQt5Core.so.5.7.1 /usr/local/qt5pi/lib/libQt5Core.so.5
+sudo ln -s /usr/local/qt5pi/lib/libGLESv2.so /usr/local/qt5pi/lib/libGLESv2.so.2
+sudo ln -s /usr/local/qt5pi/lib/libharfbuzz.so.0.10400.2 /usr/local/qt5pi/lib/libharfbuzz.so.0
+sudo ln -s /usr/local/qt5pi/lib/libEGL.so /usr/local/qt5pi/lib/libEGL.so.1
+sudo ln -s /usr/local/qt5pi/lib/libpcre16.so.3.13.3 /usr/local/qt5pi/lib/libpcre16.so.3
+sudo ln -s /usr/local/qt5pi/lib/libdouble-conversion.so.1.0 /usr/local/qt5pi/lib/libdouble-conversion.so.1
+sudo ln -s /usr/local/qt5pi/lib/libgraphite2.so.3.0.1 /usr/local/qt5pi/lib/libgraphite2.so.3
 fi
 
 # create deamon
@@ -18,17 +30,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable domoserv_pi.service
 sudo systemctl start domoserv_pi.service
 
-# install nginx
-#sudo apt-get install nginx -y
-#sudo apt-get install php -y
-
-# configure web folder
-#sudo rm -r /var/www/html
-#sudo mkdir /var/www/html
-#sudo shown pi /var/www/html
-
-# add web files to /var/www
-
-# restart
+# Reboot
 echo rebooting
 sudo reboot
