@@ -11,16 +11,16 @@ Server::Server()
     UserServer = new QTcpServer;
     connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
 #ifdef WEBSECURED
+    qDebug()<<"SSL version use for build: "<<QSslSocket::sslLibraryBuildVersionString();
+    qDebug()<<"SSL version use for run-time: "<<QSslSocket::sslLibraryVersionNumber();
     webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
     webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::SecureMode);
 #else
-    qDebug()<<"SSL version use for build: "<<QSslSocket::sslLibraryBuildVersionString();
-    qDebug()<<"SSL version use for run-time: "<<QSslSocket::sslLibraryVersionNumber();
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
     webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
 #endif
     connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
-    connect(webAdminServer,SIGNAL(NewConnexion()),this,SLOT(NewWebConnexion()));
+    connect(webAdminServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
 
     QSqlQuery req;
     req.exec("SELECT * FROM General WHERE Name='Port'");
@@ -33,9 +33,9 @@ Server::Server()
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','','','','')");
         id++;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','0','','','')");
         id++;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','0','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPort','49155','','','')");
         id++;
@@ -139,7 +139,7 @@ void Server::Init()
     emit Info(className,"PKEY generated : " + PKEY + "");
 
     //Password
-    emit Info(className,"------------------Server Info-------------------------");
+    emit Info(className,"------------------Server Admin Info-------------------");
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='Password'");
     req.next();
@@ -150,7 +150,6 @@ void Server::Init()
     req.exec("SELECT Value1 FROM General WHERE Name='Port'");
     req.next();
     emit Info(className,"Port = " + req.value(0).toString());
-    emit Info(className,"------------------------------------------------------");
 
     //Run server
     if(StartServer())
@@ -158,26 +157,29 @@ void Server::Init()
     else
         emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
 
+    emit Info(className,"------------------------------------------------------");
+
+
     //WebServer
-    emit Info(className,"Starting Web Socket");
-    emit Info(className,"------------------Web Server Info---------------------");
+    emit Info(className,"------------------Server User Info--------------------");
 
     //webPassword
     req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
     req.next();
     webPassword = req.value(0).toString();
-    emit Info(className,"Web Password = " + webPassword + "");
+    emit Info(className,"Password = " + webPassword + "");
 
     //Port
     req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
     req.next();
-    emit Info(className,"Web Port = " + req.value(0).toString() + "");
-    emit Info(className,"------------------------------------------------------");
+    emit Info(className,"Port = " + req.value(0).toString() + "");
 
     if(StartWebServer())
-        emit Info(className,"[\033[0;32m  OK  \033[0m] Web Socket started");
+        emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
     else
-        emit Info(className,"[\033[0;31mFAILED\033[0m]starting Web Socket failed");
+        emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
+
+    emit Info(className,"------------------------------------------------------");
 }
 
 bool Server::StartServer()
@@ -190,9 +192,15 @@ bool Server::StartServer()
     req.exec("SELECT Value1 FROM General WHERE Name='WebAdminSocket'");
     req.next();
     if(req.value(0).toInt() == 0)
+    {
+        emit Info(className,"Server type : TCP");
         return server->listen(QHostAddress::Any,port);
+    }
     else
+    {
+        emit Info(className,"Server type : Web Socket");
         return webAdminServer->listen(QHostAddress::Any,port);
+    }
 }
 
 void Server::NewConnexion()
@@ -222,23 +230,6 @@ void Server::Disconnect()
         emit Info(className,"Admin disconnected(" + co->peerAddress().toString().toLatin1() + ")");
     else if(usersList.removeOne(co))
         emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
-}
-
-void Server::SendToAll(QString data)
-{
-    QByteArray paquet;
-
-    QDataStream out(&paquet, QIODevice::WriteOnly);
-
-    out << (quint16) 0;
-    out << Encrypt(data);
-    out.device()->seek(0);
-    out << (quint16) (paquet.size() - sizeof(quint16));
-
-    for(int i=0;i<adminList.count();i++)
-    {
-        adminList.at(i)->write(paquet);
-    }
 }
 
 void Server::SendToUser(QTcpSocket *user, QString data)
@@ -289,10 +280,8 @@ void Server::ReceiptData()
 
         QString data;
         in >> data;
-        qDebug() << data;
-        if(!adminList.contains(socket))
-            AddUserToList(socket,data);
-        else if(!usersList.contains(socket))
+
+        if(!adminList.contains(socket) && !usersList.contains(socket))
             AddUserToList(socket,data);
         else
             emit Receipt(socket,Decrypt(data));
@@ -303,16 +292,36 @@ void Server::ReceiptData()
 
 void Server::AddUserToList(QTcpSocket *socket, QString data)
 {
-    if(data == password)
+    //ADMIN
+    if(socket->parent() == server)
     {
-        adminList.append(socket);
-        SendToUser(socket,PKEY);
-        emit Info(className,"New user accepted");
+        if(data == password)
+        {
+            adminList.append(socket);
+            SendToUser(socket,PKEY);
+            emit Info(className,"New admin accepted");
+        }
+        else
+        {
+            socket->close();
+            emit Info(className,"New admin refused");
+        }
     }
-    else
+
+    //USER
+    if(socket->parent() == UserServer)
     {
-        socket->close();
-        emit Info(className,"New user refused");
+        if(data == webPassword)
+        {
+            usersList.append(socket);
+            SendToUser(socket,PKEY);
+            emit Info(className,"New user accepted");
+        }
+        else
+        {
+            socket->close();
+            emit Info(className,"New user refused");
+        }
     }
 }
 
@@ -329,9 +338,15 @@ bool Server::StartWebServer()
     req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
     req.next();
     if(req.value(0).toInt() == 1)
-        return webServer->listen(QHostAddress::Any,port);
+    {
+        emit Info(className,"Server type : Web Socket");
+        return webServer->listen(QHostAddress::Any,port); 
+    }
     else
+    {
+        emit Info(className,"Server type : TCP");
         return UserServer->listen(QHostAddress::Any,port);
+    }
 }
 
 void Server::SecureWebSocket()
@@ -371,10 +386,20 @@ void Server::NewWebConnexion()
     if(webServer->hasPendingConnections())
     {
         QWebSocket *socket = webServer->nextPendingConnection();
+        socket->setParent(webServer);
         connect(socket,&QWebSocket::textMessageReceived,this,&Server::ReceiptMessage);
         connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
 
         emit Info(className,"New Web user connected(" + socket->peerAddress().toString() + ")");
+    }
+    if(webAdminServer->hasPendingConnections())
+    {
+        QWebSocket *socket = webAdminServer->nextPendingConnection();
+        socket->setParent(webAdminServer);
+        connect(socket,&QWebSocket::textMessageReceived,this,&Server::ReceiptMessage);
+        connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
+
+        emit Info(className,"New Web Admin connected(" + socket->peerAddress().toString() + ")");
     }
 }
 
@@ -383,6 +408,7 @@ void Server::WebDisconnect()
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
     emit Info(className,"Web user disconnected(" + socket->peerAddress().toString() + ")");
     webUsersList.removeOne(socket);
+    webAdminList.removeOne(socket);
     socket->deleteLater();
 }
 
@@ -391,26 +417,52 @@ void Server::ReceiptMessage(QString text)
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
     if(socket)
     {
-        if(!webUsersList.contains(socket))
+        //ADMIN
+        if(socket->parent() == webAdminServer)
         {
-            if(text == webPassword)
+            if(webAdminList.contains(socket))
             {
-                webUsersList.append(socket);
+                #ifdef WEBSECURED
+                    emit WebReceipt(socket,text);
+                #else
+                    emit WebReceipt(socket,Decrypt(text));
+                #endif
+            }
+            else if(text == password)
+            {
+                webAdminList.append(socket);
                 socket->sendTextMessage(PKEY);
-                emit Info(className,"new Web user accepted(" + socket->peerAddress().toString() + ")");
+                emit Info(className,"New web admin accepted");
             }
             else
             {
-                emit Info(className,"new Web user refused(" + socket->peerAddress().toString() + ")");
                 socket->close();
+                emit Info(className,"New web admin refused");
             }
         }
-        else {
-            #ifdef WEBSECURED
-                emit WebReceipt(socket,text);
-            #else
-                emit WebReceipt(socket,Decrypt(text));
-            #endif
+
+        //USER
+        if(socket->parent() == webServer)
+        {
+            if(webUsersList.contains(socket))
+            {
+                #ifdef WEBSECURED
+                    emit WebReceipt(socket,text);
+                #else
+                    emit WebReceipt(socket,Decrypt(text));
+                #endif
+            }
+            else if(text == webPassword)
+            {
+                webUsersList.append(socket);
+                socket->sendTextMessage(PKEY);
+                emit Info(className,"New web user accepted");
+            }
+            else
+            {
+                socket->close();
+                emit Info(className,"New web user refused");
+            }
         }
     }
 

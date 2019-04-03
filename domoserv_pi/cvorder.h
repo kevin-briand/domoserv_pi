@@ -66,6 +66,8 @@ public:
     void SetOrder(int order, int zone);
     void ABS(int day);
     int GetABS();
+    QString GetHistory();
+    int GetRemainingTime(int zone);
 
 public slots:
     void Reload();
@@ -101,6 +103,8 @@ private:
     int _on = 1;
     int _off = 0;
     bool _endABS = false;
+    bool _activateClass = false;
+    QString _linkHistory;
 };
 
 #endif // CVORDER_H

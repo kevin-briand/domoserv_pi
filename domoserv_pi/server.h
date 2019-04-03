@@ -20,7 +20,6 @@ public:
     void Reload();
     void Init();
     bool StartServer();
-    void SendToAll(QString data);
     void SendToUser(QTcpSocket *user, QString data);
 
     bool StartWebServer();

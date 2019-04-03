@@ -8,8 +8,8 @@ int main(int argc, char *argv[])
 
     printf("--------------------------------------------\n");
     printf("|                                          |\n");
-    printf("|                 DOMOSERV                 |\n");
-    printf("|                Version 1.0               |\n");
+    printf("|                DOMOSERV_PI               |\n");
+    printf("|                Version 1.01              |\n");
     printf("|                                          |\n");
     printf("--------------------------------------------\n");
 

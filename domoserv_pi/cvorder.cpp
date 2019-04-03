@@ -84,6 +84,7 @@ void CVOrder::Init()
     _timerZ2 = new QTimer;
     _timerPing = new QTimer;
     _abs = new QTimer;
+    _linkHistory = "/home/pi/domoserv_pi/gestCV.log";
 
     //define GPIO
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
@@ -145,6 +146,8 @@ void CVOrder::Init()
     //Init Prog
     emit Info(className,"Initialisation programmation...");
     InitProg();
+
+    _activateClass = true;
 }
 
 void CVOrder::SetOutputState(int digitalIO, int state)
@@ -378,6 +381,16 @@ void CVOrder::ChangeOrder(int order,int zone)
     //Set Output
     if(order != confort)
         SetOutputState(output,_on);
+
+    //history
+    QFile f(_linkHistory);
+    if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
+        emit Info(className,"Error to open file " + _linkHistory + " (" + f.errorString() + ")");
+    else
+    {
+        QTextStream flux(&f);
+        flux << "date=" << QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm") << ";zone=" << zone << ";order=" << order << "\n";
+    }
 
     QSqlQuery req;
     req.exec("UPDATE CVOrder SET Value1='" + QString::number(order) + "' WHERE Name='ActualZ" + QString::number(zone+1) + "'");
@@ -664,6 +677,9 @@ void CVOrder::SetProg(QString date, int zone, int state)
 
 QString CVOrder::GetProg()
 {
+    if(!_activateClass)
+        return QString("Not Activated !");
+
     QString result;
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
@@ -674,6 +690,9 @@ QString CVOrder::GetProg()
 
 QString CVOrder::GetConfig()
 {
+    if(!_activateClass)
+        return QString("Not Activated !");
+
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Priority'");
     req.next();
@@ -751,6 +770,9 @@ void CVOrder::SetTimerNetwork(int timer)
 
 int CVOrder::GetGPIO(int pin)
 {
+    if(!_activateClass)
+        return -1;
+
     QSqlQuery req;
     req.exec("SELECT Value2 FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(pin) + "'");
     if(!req.next())
@@ -794,6 +816,9 @@ void CVOrder::ReverseGPIO(bool reverse)
 
 int CVOrder::GetOrder(int zone)
 {
+    if(!_activateClass)
+        return -1;
+
     if(zone == Z1)
         return _CVStateZ1;
     else if(zone == Z2)
@@ -804,6 +829,9 @@ int CVOrder::GetOrder(int zone)
 
 int CVOrder::GetStatus(int zone)
 {
+    if(!_activateClass)
+        return -1;
+
     if(zone == Z1)
         return _StatusZ1;
     else if(zone == Z2)
@@ -893,7 +921,35 @@ void CVOrder::ABS(int day)
 
 int CVOrder::GetABS()
 {
+    if(!_activateClass)
+        return -1;
+
     if(_abs->remainingTime() == 0)
         return 0;
     return _abs->remainingTime() / 1000;
+}
+
+QString CVOrder::GetHistory()
+{
+    if(!_activateClass)
+        return QString("Not Activated !");
+
+    QFile f(_linkHistory);
+    if(f.open(QIODevice::ReadOnly))
+        return QString(f.readAll());
+    else
+        return QString();
+}
+
+int CVOrder::GetRemainingTime(int zone)
+{
+    if(!_activateClass)
+        return -1;
+
+    if(zone == Z1)
+        return _timerZ1->remainingTime() / 1000;
+    else if(zone == Z2)
+        return _timerZ2->remainingTime() / 1000;
+    else if(zone == 3)
+        return _abs->remainingTime() / 1000;
 }

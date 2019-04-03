@@ -35,6 +35,7 @@ private:
     CVOrder *cvOrder;
     Server *server;
     bool _log = false;
+    QString _linkLog;
 };
 
 #endif // INTERFACE_H

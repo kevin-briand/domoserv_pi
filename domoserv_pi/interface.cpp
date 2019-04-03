@@ -75,6 +75,7 @@ void Interface::Init()
         int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
+    _linkLog = "/home/pi/domoserv_pi/domoserv_pi.log";
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
     if(req.value(0).toBool())
@@ -88,7 +89,7 @@ void Interface::ShowInfo(QString classText, QString text)
 
     if(_log)
     {
-        QFile f("/home/pi/domoserv_pi.log");
+        QFile f(_linkLog);
         if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
             std::cout << "fail to open file 'log'\n";
         else
@@ -124,7 +125,13 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                     req.next();
                     QString result = "Config|General;CVOrder=" + req.value("Value1").toString();
                     server->SendToUser(user,result);
-                    ShowInfo(className,"Send data");
+                }
+                if(ddata.last().contains("GETLog"))
+                {//Format : Config|General;GETLog
+                    QFile f(_linkLog);
+                    f.open(QIODevice::ReadOnly);
+                    QString result = "Config|General;GETLog=" + f.readAll();
+                    server->SendToUser(user,result);
                 }
                 //SET
                 if(ddata.last().contains("SETCVOrder"))
@@ -222,11 +229,17 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                     req.next();
                     server->SendToUser(user,"Config|Server;GetPassword;Password=" + req.value("Value1").toString());
                 }
-                else if(ddata.last().contains("GETWebSocket"))
+                else if(ddata.last().contains("GETAdminSocket"))
+                {
+                    req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
+                    req.next();
+                    server->SendToUser(user,"Config|Server;GETAdminSocket;AdminSocket=" + req.value("Value1").toString());
+                }
+                else if(ddata.last().contains("GETUserSocket"))
                 {
                     req.exec("SELECT * FROM General WHERE Name='WebSocket'");
                     req.next();
-                    server->SendToUser(user,"Config|Server;GETWebSocket;WebSocket=" + req.value("Value1").toString());
+                    server->SendToUser(user,"Config|Server;GETUserSocket;UserSocket=" + req.value("Value1").toString());
                 }
                 if(ddata.last().contains("GETWebPort"))
                 {
@@ -249,7 +262,11 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'");
                 }
-                else if(ddata.last().contains("SETWebSocket"))
+                else if(ddata.last().contains("SETAdminSocket"))
+                {
+                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebAdminSocket'");
+                }
+                else if(ddata.last().contains("SETUserSocket"))
                 {
                     req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'");
                 }
@@ -314,10 +331,22 @@ void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
                     server->SendToWebUser(user,first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
                 }
                 else if(data.contains("GetZ2Status")) {
-                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z1)));
+                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
                 }
                 else if(data.contains("GetABS")) {
                     server->SendToWebUser(user,first + "GetABS=" + QString::number(cvOrder->GetABS()));
+                }
+                else if(data.contains("GetRemainingTimeZ1")) {
+                    server->SendToWebUser(user,first + "GetRemainingTimeZ1=" + QString::number(cvOrder->GetRemainingTime(Z1)));
+                }
+                else if(data.contains("GetRemainingTimeZ2")) {
+                    server->SendToWebUser(user,first + "GetRemainingTimeZ2=" + QString::number(cvOrder->GetRemainingTime(Z2)));
+                }
+                else if(data.contains("GetRemainingTimeABS")) {
+                    server->SendToWebUser(user,first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(3)));
+                }
+                else if(data.contains("GetHistory")) {
+                    server->SendToWebUser(user,first + "GetHistory=" + cvOrder->GetHistory());
                 }
             }
         }
