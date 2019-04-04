@@ -10,7 +10,7 @@ Interface::Interface()
     server = new Server;
     connect(server,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
     server->Init();
-    connect(server,SIGNAL(Receipt(QTcpSocket*,QString)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString)));
+    connect(server,SIGNAL(Receipt(QTcpSocket*,QString,int)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString,int)));
     connect(server, &Server::WebReceipt, this, &Interface::ReceiptDataFromWebServer);
 
     cvOrder = new CVOrder;
@@ -98,260 +98,306 @@ void Interface::ShowInfo(QString classText, QString text)
     }
 }
 
-void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data)
+void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data, int privilege)
 {
-    QEventLoop loop;
-    QTimer timer;
-    connect(&timer,SIGNAL(timeout()),&loop,SLOT(quit()));
-    timer.start(500);
-    loop.exec();
-    if(data.split("|").count() != 2)
-        ShowInfo(className,"Data corrupted !");
+    if(data.contains("Reload"))
+    {
+        server->Reload();
+        QSqlQuery req;
+        req.exec("SELECT * FROM General WHERE Name='CVOrder'");
+        req.next();
+        if(req.value("Value1").toBool())
+            cvOrder->Reload();
+    }
     else
     {
-        QSqlQuery req;
-        QStringList ddata = data.split("|");
-        if(ddata.at(0) == "CVOrder" && ddata.last().split(";").count() == 2)
-            cvOrder->SetOrder(ddata.last().split(";").at(0).toInt(),ddata.last().split(";").at(1).toInt());
-        else if(ddata.at(0) == "Config")
-        {
-            //General
-            if(ddata.last().contains("General"))
-            {
-                //GET
-                if(ddata.last().contains("GETCVOrder"))
-                {//Format : Config|General;GETCVOrder
-                    req.exec("SELECT * FROM General WHERE Name='CVOrder'");
-                    req.next();
-                    QString result = "Config|General;CVOrder=" + req.value("Value1").toString();
-                    server->SendToUser(user,result);
-                }
-                if(ddata.last().contains("GETLog"))
-                {//Format : Config|General;GETLog
-                    QFile f(_linkLog);
-                    f.open(QIODevice::ReadOnly);
-                    QString result = "Config|General;GETLog=" + f.readAll();
-                    server->SendToUser(user,result);
-                }
-                //SET
-                if(ddata.last().contains("SETCVOrder"))
-                {//Format : Config|General;SETCVOrder=value1
-                    req.exec("UPDATE General SET Value1='" + QString::number(ddata.last().split("=").last().toInt()) + "' WHERE Name='CVOrder'");
-                }
-            }
-            //CVOrder
-            if(ddata.last().contains("CVOrder"))
-            {
-                //GET
-                if(ddata.last().contains(";GETProg"))
-                {//Format : Config|CVOrder;GETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
-                    QString result;
-                    result = "Config|CVOrder;GETProg";
-                    result += cvOrder->GetProg();
-                    server->SendToUser(user,result);
-                }
-                else if(ddata.last().contains(";GETConfig"))
-                {//Format : Config|CVOrder;GETConfig;conf1=value1;conf2=value2
-                    QString result;
-                    result = "Config|CVOrder;GETConfig";
-                    result += cvOrder->GetConfig();
-                    server->SendToUser(user,result);
-                }
-                else if(ddata.last().contains(";GPIO"))
-                {
-                    QString result = "Config|CVOrder;GPIO;";
-
-                    result += "Z1Eco=" + QString::number(cvOrder->GetGPIO(Z1Eco)) + ";";
-                    result += "Z1HG=" + QString::number(cvOrder->GetGPIO(Z1Hg)) + ";";
-                    result += "Z2Eco=" + QString::number(cvOrder->GetGPIO(Z2Eco)) + ";";
-                    result += "Z2HG=" + QString::number(cvOrder->GetGPIO(Z2Hg)) + ";";
-                    result += "ReverseOnOff=" + QString::number(cvOrder->GetGPIO(ReverseOnOff));
-
-                    server->SendToUser(user,result);
-                }
-                //SET
-                else if(ddata.last().contains(";SETProg"))
-                {//Format : Config|CVOrder;SETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
-                    QStringList result = ddata.last().split(";");
-                    result.removeFirst();
-                    result.removeFirst();
-                    for(int i=0;i<result.count();i++)
-                    {
-                        cvOrder->SetProg(result.at(i).split("#").at(0),result.at(i).split("#").at(1).toInt(),result.at(i).split("#").at(2).toInt());
-                    }
-                }
-                else if(ddata.last().contains(";DELProg"))
-                {//Format : Config|CVOrder;DELProg
-                    cvOrder->RemoveProg(0);
-                }
-                else if(ddata.last().contains(";SETConfig"))
-                {//Format : Config|CVOrder;SETConfig;Conf1=Value1
-                    if(ddata.last().split(";").last().contains("Priority"))
-                        cvOrder->SetPriority(ddata.last().split(";").last().split("=").last().toInt());
-                    else if(ddata.last().split(";").last().contains("RmIpPing"))
-                        cvOrder->RemoveIp(ddata.last().split(";").last().split("=").last());
-                    else if(ddata.last().split(";").last().contains("AddIpPing"))
-                        cvOrder->AddIp(ddata.last().split(";").last().split("=").last());
-                    else if(ddata.last().split(";").last().contains("timerNetwork"))
-                        cvOrder->SetTimerNetwork(ddata.last().split(";").last().split("=").last().toInt());
-                }
-                else if(ddata.last().contains(";SETGPIO"))
-                {
-                    QStringList result = ddata.last().split(";");
-                    for(int i=0;i<result.count();i++)
-                    {//Format : Config|CVOrder;SETGPIO;Z1Eco=pin;Z1HG=pin2
-                        if(result.at(i).contains("Z1Eco="))
-                            cvOrder->SetGPIO(Z1Eco,result.at(i).split("=").last().toInt());
-                        else if(result.at(i).contains("Z1HG="))
-                            cvOrder->SetGPIO(Z1Hg,result.at(i).split("=").last().toInt());
-                        else if(result.at(i).contains("Z2Eco="))
-                            cvOrder->SetGPIO(Z2Eco,result.at(i).split("=").last().toInt());
-                        else if(result.at(i).contains("Z2HG="))
-                            cvOrder->SetGPIO(Z2Hg,result.at(i).split("=").last().toInt());
-                        else if(result.at(i).contains("ReverseOnOff="))
-                            cvOrder->ReverseGPIO(result.at(i).split("=").last().toInt());
-                    }
-                }
-            }
-            //Server
-            if(ddata.last().contains("Server"))
-            {//Format : Config|Server;GETPort
-                //GET
-                if(ddata.last().contains("GETPort"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='Port'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GETPort;Port=" + req.value("Value1").toString());
-                }
-                else if(ddata.last().contains("GETPassword"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='Password'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GetPassword;Password=" + req.value("Value1").toString());
-                }
-                else if(ddata.last().contains("GETAdminSocket"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GETAdminSocket;AdminSocket=" + req.value("Value1").toString());
-                }
-                else if(ddata.last().contains("GETUserSocket"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='WebSocket'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GETUserSocket;UserSocket=" + req.value("Value1").toString());
-                }
-                if(ddata.last().contains("GETWebPort"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='WebPort'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GETWebPort;WebPort=" + req.value("Value1").toString());
-                }
-                else if(ddata.last().contains("GETWebPassword"))
-                {
-                    req.exec("SELECT * FROM General WHERE Name='WebPassword'");
-                    req.next();
-                    server->SendToUser(user,"Config|Server;GetWebPassword;WebPassword=" + req.value("Value1").toString());
-                }
-                //SET
-                if(ddata.last().contains("SETPort"))
-                {
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'");
-                }
-                else if(ddata.last().contains("SETPassword"))
-                {
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'");
-                }
-                else if(ddata.last().contains("SETAdminSocket"))
-                {
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebAdminSocket'");
-                }
-                else if(ddata.last().contains("SETUserSocket"))
-                {
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'");
-                }
-                if(ddata.last().contains("SETWebPort"))
-                {
-                    ShowInfo(className,"Set WebPort = " + ddata.last().split("=").last());
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'");
-                }
-                else if(ddata.last().contains("SETWebPassword"))
-                {
-                    req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'");
-                }
-            }
-        }
-        else if(ddata.at(0) == "Reload")
-        {
-            server->Reload();
-
-            req.exec("SELECT * FROM General WHERE Name='CVOrder'");
-            req.next();
-            if(req.value("Value1").toBool())
-                cvOrder->Reload();
-        }
+        server->SendToUser(user,ReadData(data,privilege));
     }
 }
 
-void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data)
+void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data, int privilege)
 {
-    if(data.contains("|")) {
-        if(data.contains("CVOrder")) {
-            QString first("CVOrder|");
-            if(data.contains("=")) {//Set
-                if(data.contains("SetZ1Order")) {
-                    cvOrder->SetOrder(data.split("=").last().toInt(),Z1);
-                    server->SendToWebUser(user,first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
-                }
-                else if(data.contains("SetZ2Order")) {
-                    cvOrder->SetOrder(data.split("=").last().toInt(),Z2);
-                    server->SendToWebUser(user,first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
-                }
-                else if(data.contains("SetZ1Status")) {
-                    cvOrder->SetStatus(data.split("=").last().toInt(),Z1);
-                    server->SendToWebUser(user,first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
-                }
-                else if(data.contains("SetZ2Status")) {
-                    cvOrder->SetStatus(data.split("=").last().toInt(),Z2);
-                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
-                }
-                else if(data.contains("ABS")) {
-                    cvOrder->ABS(data.split("=").last().toInt());
-                    server->SendToWebUser(user,first + "Reload");
-                }
+    server->SendToWebUser(user,ReadData(data,privilege));
+}
+
+QString Interface::ReadData(QString data, int level)
+{
+    if(level == Admin)
+    {
+        if(data.split("|").count() != 2)
+        {
+            ShowInfo(className,"Data corrupted !");
+            return QString("Error : Data corrupted");
+        }
+        else
+        {
+            QSqlQuery req;
+            QStringList ddata = data.split("|");
+            if(ddata.at(0) == "CVOrder" && ddata.last().split(";").count() == 2)
+            {
+                cvOrder->SetOrder(ddata.last().split(";").at(0).toInt(),ddata.last().split(";").at(1).toInt());
+                return QString("OK");
             }
-            else {//Get
-                if(data.contains("GetZ1Order")) {
-                    server->SendToWebUser(user,first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1)));
+            else if(ddata.at(0) == "Config")
+            {
+                //General
+                if(ddata.last().contains("General"))
+                {
+                    //GET
+                    if(ddata.last().contains("GETCVOrder"))
+                    {//Format : Config|General;GETCVOrder
+                        req.exec("SELECT * FROM General WHERE Name='CVOrder'");
+                        req.next();
+                        QString result = "Config|General;CVOrder=" + req.value("Value1").toString();
+                        return result;
+                    }
+                    if(ddata.last().contains("GETLog"))
+                    {//Format : Config|General;GETLog
+                        QFile f(_linkLog);
+                        f.open(QIODevice::ReadOnly);
+                        QString result = "Config|General;GETLog=" + f.readAll();
+                        return result;
+                    }
+                    //SET
+                    if(ddata.last().contains("SETCVOrder"))
+                    {//Format : Config|General;SETCVOrder=value1
+                        if(req.exec("UPDATE General SET Value1='" + QString::number(ddata.last().split("=").last().toInt()) + "' WHERE Name='CVOrder'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
                 }
-                else if(data.contains("GetZ2Order")) {
-                    server->SendToWebUser(user,first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2)));
+                //CVOrder
+                if(ddata.last().contains("CVOrder"))
+                {
+                    //GET
+                    if(ddata.last().contains(";GETProg"))
+                    {//Format : Config|CVOrder;GETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
+                        QString result;
+                        result = "Config|CVOrder;GETProg";
+                        result += cvOrder->GetProg();
+                        return result;
+                    }
+                    else if(ddata.last().contains(";GETConfig"))
+                    {//Format : Config|CVOrder;GETConfig;conf1=value1;conf2=value2
+                        QString result;
+                        result = "Config|CVOrder;GETConfig";
+                        result += cvOrder->GetConfig();
+                        return result;
+                    }
+                    else if(ddata.last().contains(";GPIO"))
+                    {
+                        QString result = "Config|CVOrder;GPIO;";
+
+                        result += "Z1Eco=" + QString::number(cvOrder->GetGPIO(Z1Eco)) + ";";
+                        result += "Z1HG=" + QString::number(cvOrder->GetGPIO(Z1Hg)) + ";";
+                        result += "Z2Eco=" + QString::number(cvOrder->GetGPIO(Z2Eco)) + ";";
+                        result += "Z2HG=" + QString::number(cvOrder->GetGPIO(Z2Hg)) + ";";
+                        result += "ReverseOnOff=" + QString::number(cvOrder->GetGPIO(ReverseOnOff));
+
+                        return result;
+                    }
+                    //SET
+                    else if(ddata.last().contains(";SETProg"))
+                    {//Format : Config|CVOrder;SETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
+                        QStringList result = ddata.last().split(";");
+                        result.removeFirst();
+                        result.removeFirst();
+                        for(int i=0;i<result.count();i++)
+                        {
+                            cvOrder->SetProg(result.at(i).split("#").at(0),result.at(i).split("#").at(1).toInt(),result.at(i).split("#").at(2).toInt());
+                        }
+                        return QString("OK");
+                    }
+                    else if(ddata.last().contains(";DELProg"))
+                    {//Format : Config|CVOrder;DELProg
+                        cvOrder->RemoveProg(0);
+                        return QString("OK");
+                    }
+                    else if(ddata.last().contains(";SETConfig"))
+                    {//Format : Config|CVOrder;SETConfig;Conf1=Value1
+                        if(ddata.last().split(";").last().contains("Priority"))
+                            cvOrder->SetPriority(ddata.last().split(";").last().split("=").last().toInt());
+                        else if(ddata.last().split(";").last().contains("RmIpPing"))
+                            cvOrder->RemoveIp(ddata.last().split(";").last().split("=").last());
+                        else if(ddata.last().split(";").last().contains("AddIpPing"))
+                            cvOrder->AddIp(ddata.last().split(";").last().split("=").last());
+                        else if(ddata.last().split(";").last().contains("timerNetwork"))
+                            cvOrder->SetTimerNetwork(ddata.last().split(";").last().split("=").last().toInt());
+                        return QString("OK");
+                    }
+                    else if(ddata.last().contains(";SETGPIO"))
+                    {
+                        QStringList result = ddata.last().split(";");
+                        for(int i=0;i<result.count();i++)
+                        {//Format : Config|CVOrder;SETGPIO;Z1Eco=pin;Z1HG=pin2
+                            if(result.at(i).contains("Z1Eco="))
+                                cvOrder->SetGPIO(Z1Eco,result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("Z1HG="))
+                                cvOrder->SetGPIO(Z1Hg,result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("Z2Eco="))
+                                cvOrder->SetGPIO(Z2Eco,result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("Z2HG="))
+                                cvOrder->SetGPIO(Z2Hg,result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("ReverseOnOff="))
+                                cvOrder->ReverseGPIO(result.at(i).split("=").last().toInt());
+                        }
+                        return QString("OK");
+                    }
                 }
-                else if(data.contains("GetZ1Status")) {
-                    server->SendToWebUser(user,first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1)));
-                }
-                else if(data.contains("GetZ2Status")) {
-                    server->SendToWebUser(user,first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2)));
-                }
-                else if(data.contains("GetABS")) {
-                    server->SendToWebUser(user,first + "GetABS=" + QString::number(cvOrder->GetABS()));
-                }
-                else if(data.contains("GetRemainingTimeZ1")) {
-                    server->SendToWebUser(user,first + "GetRemainingTimeZ1=" + QString::number(cvOrder->GetRemainingTime(Z1)));
-                }
-                else if(data.contains("GetRemainingTimeZ2")) {
-                    server->SendToWebUser(user,first + "GetRemainingTimeZ2=" + QString::number(cvOrder->GetRemainingTime(Z2)));
-                }
-                else if(data.contains("GetRemainingTimeABS")) {
-                    server->SendToWebUser(user,first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(3)));
-                }
-                else if(data.contains("GetHistory")) {
-                    server->SendToWebUser(user,first + "GetHistory=" + cvOrder->GetHistory());
+                //Server
+                if(ddata.last().contains("Server"))
+                {//Format : Config|Server;GETPort
+                    //GET
+                    if(ddata.last().contains("GETPort"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='Port'");
+                        req.next();
+                        return QString("Config|Server;GETPort;Port=" + req.value("Value1").toString());
+                    }
+                    else if(ddata.last().contains("GETPassword"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='Password'");
+                        req.next();
+                        return QString("Config|Server;GetPassword;Password=" + req.value("Value1").toString());
+                    }
+                    else if(ddata.last().contains("GETAdminSocket"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
+                        req.next();
+                        return QString("Config|Server;GETAdminSocket;AdminSocket=" + req.value("Value1").toString());
+                    }
+                    else if(ddata.last().contains("GETUserSocket"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='WebSocket'");
+                        req.next();
+                        return QString("Config|Server;GETUserSocket;UserSocket=" + req.value("Value1").toString());
+                    }
+                    if(ddata.last().contains("GETWebPort"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='WebPort'");
+                        req.next();
+                        return QString("Config|Server;GETWebPort;WebPort=" + req.value("Value1").toString());
+                    }
+                    else if(ddata.last().contains("GETWebPassword"))
+                    {
+                        req.exec("SELECT * FROM General WHERE Name='WebPassword'");
+                        req.next();
+                        return QString("Config|Server;GetWebPassword;WebPassword=" + req.value("Value1").toString());
+                    }
+                    //SET
+                    if(ddata.last().contains("SETPort"))
+                    {
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    else if(ddata.last().contains("SETPassword"))
+                    {
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    else if(ddata.last().contains("SETAdminSocket"))
+                    {
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebAdminSocket'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    else if(ddata.last().contains("SETUserSocket"))
+                    {
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    if(ddata.last().contains("SETWebPort"))
+                    {
+                        ShowInfo(className,"Set WebPort = " + ddata.last().split("=").last());
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    else if(ddata.last().contains("SETWebPassword"))
+                    {
+                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
                 }
             }
         }
     }
-    else {
-        ShowInfo(className,"web data corrupted");
+    else if(level == User)
+    {
+        if(data.contains("|")) {
+            if(data.contains("CVOrder")) {
+                QString first("CVOrder|");
+                if(data.contains("=")) {//Set
+                    if(data.contains("SetZ1Order")) {
+                        cvOrder->SetOrder(data.split("=").last().toInt(),Z1);
+                        return first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1));
+                    }
+                    else if(data.contains("SetZ2Order")) {
+                        cvOrder->SetOrder(data.split("=").last().toInt(),Z2);
+                        return first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2));
+                    }
+                    else if(data.contains("SetZ1Status")) {
+                        cvOrder->SetStatus(data.split("=").last().toInt(),Z1);
+                        return first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1));
+                    }
+                    else if(data.contains("SetZ2Status")) {
+                        cvOrder->SetStatus(data.split("=").last().toInt(),Z2);
+                        return first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2));
+                    }
+                    else if(data.contains("ABS")) {
+                        cvOrder->ABS(data.split("=").last().toInt());
+                        return first + "Reload";
+                    }
+                }
+                else {//Get
+                    if(data.contains("GetZ1Order")) {
+                        return first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1));
+                    }
+                    else if(data.contains("GetZ2Order")) {
+                        return first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2));
+                    }
+                    else if(data.contains("GetZ1Status")) {
+                        return first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1));
+                    }
+                    else if(data.contains("GetZ2Status")) {
+                        return first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2));
+                    }
+                    else if(data.contains("GetABS")) {
+                        return first + "GetABS=" + QString::number(cvOrder->GetABS());
+                    }
+                    else if(data.contains("GetRemainingTimeZ1")) {
+                        return first + "GetRemainingTimeZ1=" + QString::number(cvOrder->GetRemainingTime(Z1));
+                    }
+                    else if(data.contains("GetRemainingTimeZ2")) {
+                        return first + "GetRemainingTimeZ2=" + QString::number(cvOrder->GetRemainingTime(Z2));
+                    }
+                    else if(data.contains("GetRemainingTimeABS")) {
+                        return first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(3));
+                    }
+                    else if(data.contains("GetHistory")) {
+                        return first + "GetHistory=" + cvOrder->GetHistory();
+                    }
+                }
+            }
+        }
+        else {
+            ShowInfo(className,"data corrupted");
+            return QString("Data corrupted");
+        }
+    }
+    else
+    {
+        return QString("Privilege error");
     }
 }

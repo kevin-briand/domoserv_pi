@@ -12,6 +12,12 @@
 
 //#define WEBSECURED
 
+enum Privilege
+{
+    Admin,
+    User
+};
+
 class Server : public QObject
 {
     Q_OBJECT
@@ -38,8 +44,8 @@ private slots:
     void SslErrors(const QList<QSslError> &err);
 
 signals:
-    void Receipt(QTcpSocket *client, QString data);
-    void WebReceipt(QWebSocket * socket, QString data);
+    void Receipt(QTcpSocket *client, QString data, int privilege);
+    void WebReceipt(QWebSocket * socket, QString data, int privilege);
     void Info(QString classname, QString text);
 
 private:

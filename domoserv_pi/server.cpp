@@ -282,9 +282,16 @@ void Server::ReceiptData()
         in >> data;
 
         if(!adminList.contains(socket) && !usersList.contains(socket))
+        {
             AddUserToList(socket,data);
+        }
         else
-            emit Receipt(socket,Decrypt(data));
+        {
+            int privilege = User;
+            if(adminList.contains(socket))
+                privilege = Admin;
+            emit Receipt(socket,Decrypt(data),privilege);
+        }
 
         dataSize = 0;
     }
@@ -423,9 +430,9 @@ void Server::ReceiptMessage(QString text)
             if(webAdminList.contains(socket))
             {
                 #ifdef WEBSECURED
-                    emit WebReceipt(socket,text);
+                    emit WebReceipt(socket,text,Admin);
                 #else
-                    emit WebReceipt(socket,Decrypt(text));
+                    emit WebReceipt(socket,Decrypt(text),Admin);
                 #endif
             }
             else if(text == password)
@@ -447,9 +454,9 @@ void Server::ReceiptMessage(QString text)
             if(webUsersList.contains(socket))
             {
                 #ifdef WEBSECURED
-                    emit WebReceipt(socket,text);
+                    emit WebReceipt(socket,text, User);
                 #else
-                    emit WebReceipt(socket,Decrypt(text));
+                    emit WebReceipt(socket,Decrypt(text),User);
                 #endif
             }
             else if(text == webPassword)

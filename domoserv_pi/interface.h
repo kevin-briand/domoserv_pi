@@ -16,6 +16,7 @@
     //#define ACT_WIRING_PI_SPI
 #endif
 
+
 #define className "General"
 
 class Interface : public QObject
@@ -28,10 +29,11 @@ public:
 
 public slots:
     void ShowInfo(QString classText,QString text);
-    void ReceiptDataFromServer(QTcpSocket *user, QString data);
-    void ReceiptDataFromWebServer(QWebSocket *user, QString data);
+    void ReceiptDataFromServer(QTcpSocket *user, QString data, int privilege);
+    void ReceiptDataFromWebServer(QWebSocket *user, QString data, int privilege);
 
 private:
+    QString ReadData(QString data, int level);
     CVOrder *cvOrder;
     Server *server;
     bool _log = false;
