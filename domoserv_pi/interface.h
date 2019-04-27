@@ -31,6 +31,7 @@ public slots:
     void ShowInfo(QString classText,QString text);
     void ReceiptDataFromServer(QTcpSocket *user, QString data, int privilege);
     void ReceiptDataFromWebServer(QWebSocket *user, QString data, int privilege);
+    void StartUpdate();
 
 private:
     QString ReadData(QString data, int level);
@@ -38,6 +39,7 @@ private:
     Server *server;
     bool _log = false;
     QString _linkLog;
+    QTimer _update;
 };
 
 #endif // INTERFACE_H

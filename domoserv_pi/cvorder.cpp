@@ -461,12 +461,16 @@ void CVOrder::InitProg()
         while(req.next());
         if(req.previous())
             _lastStateZ1 = req.value("Value3").toInt();
+        else
+            _lastStateZ1 = confort;
 
         //Z2
         req.exec("SELECT * FROM CVOrder WHERE Value1 < '" + actual.toString("yyyy-MM-dd hh:mm") + "' AND Name='Prog' AND Value2='" + QString::number(Z2) + "' ORDER BY Value1 ASC");
         while(req.next());
         if(req.previous())
             _lastStateZ2 = req.value("Value3").toInt();
+        else
+            _lastStateZ2 = confort;
 
         _endABS = false;
     }
@@ -639,7 +643,10 @@ bool CVOrder::PingNetwork()
         for(int i2=0;i2<result2.count();i2++)//read output
             if(result2.at(i2).contains("packets transmitted"))
                 if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
+                {
                     success = true;
+                    emit Info(className,ip.at(i) + " found on network");
+                }
     }
     return success;
 }
@@ -929,7 +936,7 @@ int CVOrder::GetABS()
     return _abs->remainingTime() / 1000;
 }
 
-QString CVOrder::GetHistory()
+QString CVOrder::GetLog()
 {
     if(!_activateClass)
         return QString("Not Activated !");
@@ -952,4 +959,129 @@ int CVOrder::GetRemainingTime(int zone)
         return _timerZ2->remainingTime() / 1000;
     else if(zone == 3)
         return _abs->remainingTime() / 1000;
+    else
+        return -1;
+}
+
+void CVOrder::InitCPTEnergy()
+{
+    //Create Rows
+    QSqlQuery req;
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
+    if(!req.next())
+    {
+        req.exec("SELECT MAX(ID) FROM CVOrder");
+        req.next();
+        int id = req.value(0).toInt();
+        id++;
+        int test = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ActCPTEnergy','0','','','')");
+        id++;
+        int test2 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ActHCCPTEnergy','0','','','')");
+        id++;
+        int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIOImpCPTEnergy','4','','','')");
+        id++;
+        int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIOHCCPTEnergy','5','','','')");
+        id++;
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/CPTEnergy.log','','','')");
+        id++;
+        int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','0','','','')");
+
+        if(test && test2 && test3 && test4 && test5 && test6)
+            emit Info(className,"[\033[0;32m  OK  \033[0m] Rows created ");
+        else if(test || test2 || test3 || test4 || test5 || test6)
+            emit Info(className,"[\033[0;33m  OK  \033[0m] Rows created ");
+        else
+            emit Info(className,"[\033[0;31mFAILED\033[0m] Rows not created ");
+    }
+
+    //Set Var
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
+    req.next();
+    if(req.value("value1").toInt() == 0)
+        return;
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIOImpCPTEnergy'");
+    req.next();
+    _ImpCPTEnergy = req.value("value1").toInt();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIOHCCPTEnergy'");
+    req.next();
+    _HCCPTEnergy = req.value("value1").toInt();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='ImpWattCPTEnergy'");
+    req.next();
+    _WattCPTEnergy = req.value("value1").toInt();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='FileCPTEnergy'");
+    req.next();
+    _linkCPTEnergy = req.value("value1").toString();
+
+
+    //Set GPIO
+#ifdef ACT_WIRING_PI
+    pinMode(_CPTEnergy,INPUT);
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActHCCPTEnergy'");
+    req.next();
+    if(req.value("value1").toInt() == 1)
+        pinMode(_HCCPTEnergy,INPUT);
+#endif
+
+    //Run timer
+    _timerReadInput = new QTimer;
+    _timerReadInput->setSingleShot(false);
+    _timerReadInput->start(90);//90ms
+}
+
+void CVOrder::AddImp()
+{
+    //sauvegarde en fichier toute les 30mn
+    static int totalImp = 0;
+    static int minute = 0;
+
+    int currentMinute = QTime::currentTime().minute();
+
+    if(currentMinute > 0 && currentMinute <= 29)
+    {
+        if(minute > 29 && totalImp > 0)
+        {
+            int total = totalImp * _WattCPTEnergy;
+
+            QFile f(_linkCPTEnergy);
+            if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
+                    emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
+            else {
+                QTextStream flux(&f);
+                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:00") << "|" << total;
+            }
+
+            totalImp = 0;
+        }
+        totalImp++;
+    }
+    else if(currentMinute > 29 && currentMinute < 60)
+    {
+        if(minute < 30 && totalImp > 0)
+        {
+            int total = totalImp * _WattCPTEnergy;
+
+            QFile f(_linkCPTEnergy);
+            if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
+                    emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
+            else {
+                QTextStream flux(&f);
+                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh::30") << "|" << total;
+            }
+
+            totalImp = 0;
+        }
+        totalImp++;
+    }
+}
+
+void CVOrder::TestInput()
+{
+#ifdef ACT_WIRING_PI
+    if(digitalRead(_ImpCPTEnergy) == HIGH)
+        AddImp();
+#endif
 }

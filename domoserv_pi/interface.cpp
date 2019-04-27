@@ -23,8 +23,10 @@ Interface::Interface()
         cvOrder->Init();
     }   
 
+
     Test();
 
+    connect(&_update,&QTimer::timeout,this,&Interface::StartUpdate);
 }
 
 bool Interface::Test()
@@ -41,8 +43,14 @@ bool Interface::Test()
         qDebug() <<  wiringPiSPIDataRW(1,buffer,100);
         qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
 #endif
-
+    StartUpdate();
     return true;
+}
+
+void Interface::StartUpdate()
+{
+    QProcess process;
+    process.start("../UPDATE");
 }
 
 void Interface::Init()
@@ -80,6 +88,8 @@ void Interface::Init()
     req.next();
     if(req.value(0).toBool())
         _log = true;
+
+    _update.start(86400000*7);//24h * 7
 }
 
 void Interface::ShowInfo(QString classText, QString text)
@@ -385,8 +395,8 @@ QString Interface::ReadData(QString data, int level)
                     else if(data.contains("GetRemainingTimeABS")) {
                         return first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(3));
                     }
-                    else if(data.contains("GetHistory")) {
-                        return first + "GetHistory=" + cvOrder->GetHistory();
+                    else if(data.contains("GetLog")) {
+                        return first + "GetLog=" + cvOrder->GetLog();
                     }
                 }
             }

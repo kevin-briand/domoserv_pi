@@ -33,7 +33,8 @@ enum GPIO{
     Z1Hg,
     Z2Eco,
     Z2Hg,
-    ReverseOnOff
+    ReverseOnOff,
+    CPTEnergy
 };
 
 enum Status{
@@ -66,7 +67,7 @@ public:
     void SetOrder(int order, int zone);
     void ABS(int day);
     int GetABS();
-    QString GetHistory();
+    QString GetLog();
     int GetRemainingTime(int zone);
 
 public slots:
@@ -78,6 +79,8 @@ private slots:
     void NextProgram(int zone);
     void RunChangeOrder();
     bool PingNetwork();
+    void AddImp();
+    void TestInput();
 
 signals:
     void Info(QString textClass, QString text);
@@ -85,6 +88,7 @@ signals:
 private:
     void SetOutputState(int digitalIO,int state);
     void ChangeOrder(int order, int zone);
+    void InitCPTEnergy();
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
     int _lastStateZ1 = 0;
@@ -102,9 +106,14 @@ private:
     int _z2Hg = 3;
     int _on = 1;
     int _off = 0;
+    int _ImpCPTEnergy = 4;
+    int _HCCPTEnergy = 5;
+    int _WattCPTEnergy = 1;
     bool _endABS = false;
     bool _activateClass = false;
     QString _linkHistory;
+    QTimer *_timerReadInput;
+    QString _linkCPTEnergy;
 };
 
 #endif // CVORDER_H
