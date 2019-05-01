@@ -203,7 +203,9 @@ QString Interface::ReadData(QString data, int level)
                         result += "Z1HG=" + QString::number(cvOrder->GetGPIO(Z1Hg)) + ";";
                         result += "Z2Eco=" + QString::number(cvOrder->GetGPIO(Z2Eco)) + ";";
                         result += "Z2HG=" + QString::number(cvOrder->GetGPIO(Z2Hg)) + ";";
-                        result += "ReverseOnOff=" + QString::number(cvOrder->GetGPIO(ReverseOnOff));
+                        result += "ReverseOnOff=" + QString::number(cvOrder->GetGPIO(ReverseOnOff)) + ";";
+                        result += "ImpCPTEnergy=" + QString::number(cvOrder->GetGPIO(ImpCPTEnergy)) + ";";
+                        result += "HCCPTEnergy=" + QString::number(cvOrder->GetGPIO(HCCPTEnergy));
 
                         return result;
                     }
@@ -234,6 +236,14 @@ QString Interface::ReadData(QString data, int level)
                             cvOrder->AddIp(ddata.last().split(";").last().split("=").last());
                         else if(ddata.last().split(";").last().contains("timerNetwork"))
                             cvOrder->SetTimerNetwork(ddata.last().split(";").last().split("=").last().toInt());
+                        else if(ddata.last().split(";").last().contains("ActCPTEnergy"))
+                            cvOrder->UseCPTEnergy(ddata.last().split(";").last().split("=").last().toInt());
+                        else if(ddata.last().split(";").last().contains("ActHCCPTEnergy"))
+                            cvOrder->UseHCCPTEnergy(ddata.last().split(";").last().split("=").last().toInt());
+                        else if(ddata.last().split(";").last().contains("FileCPTEnergy"))
+                            ;//cvOrder->(ddata.last().split(";").last().split("=").last());
+                        else if(ddata.last().split(";").last().contains("ImpWattCPTEnergy"))
+                            cvOrder->SetImpWatt(ddata.last().split(";").last().split("=").last().toInt());
                         return QString("OK");
                     }
                     else if(ddata.last().contains(";SETGPIO"))
@@ -251,6 +261,10 @@ QString Interface::ReadData(QString data, int level)
                                 cvOrder->SetGPIO(Z2Hg,result.at(i).split("=").last().toInt());
                             else if(result.at(i).contains("ReverseOnOff="))
                                 cvOrder->ReverseGPIO(result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("ImpCPTEnergy="))
+                                cvOrder->SetGPIO(ImpCPTEnergy,result.at(i).split("=").last().toInt());
+                            else if(result.at(i).contains("HCCPTEnergy="))
+                                cvOrder->SetGPIO(HCCPTEnergy,result.at(i).split("=").last().toInt());
                         }
                         return QString("OK");
                     }

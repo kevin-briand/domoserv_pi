@@ -714,6 +714,22 @@ QString CVOrder::GetConfig()
     while(req.next())
         result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
 
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
+    req.next();
+    result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActHCCPTEnergy'");
+    req.next();
+    result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='ImpWattCPTEnergy'");
+    req.next();
+    result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='FileCPTEnergy'");
+    req.next();
+    result += ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+
     return result;
 }
 
@@ -792,11 +808,16 @@ int CVOrder::GetGPIO(int pin)
 void CVOrder::SetGPIO(int pin,int newPin)
 {
     QSqlQuery req;
-    if(pin >= 0 && pin <= 3)
+    if(pin >= 0 && pin <= 6)
     {
+        if(pin == ReverseOnOff)
+        {
+            ReverseGPIO(newPin);
+            return;
+        }
         if(newPin >= 0 && newPin <= 27)
         {
-            if(req.exec("UPDATE CVOrder SET Value2='" + QString::number(newPin) + "' WHERE Name='GPIO' AND Value1='" + QString::number(newPin) + "'"))
+            if(req.exec("UPDATE CVOrder SET Value2='" + QString::number(newPin) + "' WHERE Name='GPIO' AND Value1='" + QString::number(pin) + "'"))
                 emit Info(className,"GPIO pin " + QString::number(pin) + " set to " + QString::number(newPin));
             else
                 emit Info(className,"GPIO pin change failed");
@@ -978,13 +999,13 @@ void CVOrder::InitCPTEnergy()
         id++;
         int test2 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ActHCCPTEnergy','0','','','')");
         id++;
-        int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIOImpCPTEnergy','4','','','')");
+        int test3 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','" + QString::number(ImpCPTEnergy) + "','4','','')");
         id++;
-        int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIOHCCPTEnergy','5','','','')");
+        int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','" + QString::number(HCCPTEnergy) + "','5','','')");
         id++;
         int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/CPTEnergy.log','','','')");
         id++;
-        int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','0','','','')");
+        int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','1','','','')");
 
         if(test && test2 && test3 && test4 && test5 && test6)
             emit Info(className,"[\033[0;32m  OK  \033[0m] Rows created ");
@@ -1000,11 +1021,11 @@ void CVOrder::InitCPTEnergy()
     if(req.value("value1").toInt() == 0)
         return;
 
-    req.exec("SELECT * FROM CVOrder WHERE Name='GPIOImpCPTEnergy'");
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(ImpCPTEnergy) + "'");
     req.next();
     _ImpCPTEnergy = req.value("value1").toInt();
 
-    req.exec("SELECT * FROM CVOrder WHERE Name='GPIOHCCPTEnergy'");
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(HCCPTEnergy) + "'");
     req.next();
     _HCCPTEnergy = req.value("value1").toInt();
 
@@ -1019,17 +1040,23 @@ void CVOrder::InitCPTEnergy()
 
     //Set GPIO
 #ifdef ACT_WIRING_PI
-    pinMode(_CPTEnergy,INPUT);
+    pinMode(_ImpCPTEnergy,INPUT);
+    pullUpDnControl(_ImpCPTEnergy,PUD_UP) ;
     req.exec("SELECT * FROM CVOrder WHERE Name='ActHCCPTEnergy'");
     req.next();
     if(req.value("value1").toInt() == 1)
+    {
         pinMode(_HCCPTEnergy,INPUT);
+        pullUpDnControl(_HCCPTEnergy,PUD_UP) ;
+    }
 #endif
 
     //Run timer
     _timerReadInput = new QTimer;
     _timerReadInput->setSingleShot(false);
-    _timerReadInput->start(90);//90ms
+    _timerReadInput->start(70);//70ms
+
+    emit Info(className,"[\033[0;32m  OK  \033[0m] Compteur d'énergie activé");
 }
 
 void CVOrder::AddImp()
@@ -1081,7 +1108,58 @@ void CVOrder::AddImp()
 void CVOrder::TestInput()
 {
 #ifdef ACT_WIRING_PI
-    if(digitalRead(_ImpCPTEnergy) == HIGH)
+    if(digitalRead(_ImpCPTEnergy) == LOW)
+    {
         AddImp();
+        while(digitalRead(_ImpCPTEnergy) == LOW)
+            delay(10);
+    }
 #endif
+}
+
+int CVOrder::GetImpWatt()
+{
+    return _WattCPTEnergy;
+}
+
+void CVOrder::SetImpWatt(int watt)
+{
+    if(watt > 0 && watt < 100)
+    {
+        QSqlQuery req;
+        req.exec("UPDATE CVOrder SET Value1='" + QString::number(watt) + "' WHERE Name='ImpWattCPTEnergy'");
+        _WattCPTEnergy = watt;
+    }
+}
+
+void CVOrder::UseCPTEnergy(bool value)
+{
+    QSqlQuery req;
+    if(value)
+    {
+        req.exec("UPDATE CVOrder SET Value1='1' WHERE Name='ActCPTEnergy'");
+        InitCPTEnergy();
+    }
+    else
+    {
+        req.exec("UPDATE CVOrder SET Value1='0' WHERE Name='ActCPTEnergy'");
+        StopCPTEnergy();
+    }
+}
+
+void CVOrder::UseHCCPTEnergy(bool value)
+{
+    QSqlQuery req;
+    if(value)
+        req.exec("UPDATE CVOrder SET Value1='1' WHERE Name='ActHCCPTEnergy'");
+    else
+        req.exec("UPDATE CVOrder SET Value1='0' WHERE Name='ActHCCPTEnergy'");
+
+    StopCPTEnergy();
+    InitCPTEnergy();
+}
+
+void CVOrder::StopCPTEnergy()
+{
+    _timerReadInput->stop();
 }

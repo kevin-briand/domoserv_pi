@@ -34,7 +34,8 @@ enum GPIO{
     Z2Eco,
     Z2Hg,
     ReverseOnOff,
-    CPTEnergy
+    ImpCPTEnergy,
+    HCCPTEnergy
 };
 
 enum Status{
@@ -69,6 +70,11 @@ public:
     int GetABS();
     QString GetLog();
     int GetRemainingTime(int zone);
+    int GetImpWatt();
+    void SetImpWatt(int watt);
+    void UseHCCPTEnergy(bool value);
+    void UseCPTEnergy(bool value);
+    void StopCPTEnergy();
 
 public slots:
     void Reload();
