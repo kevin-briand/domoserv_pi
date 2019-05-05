@@ -1,6 +1,6 @@
 #include "cvorder.h"
 
-//Version 1.01
+//Version 1.02
 
 CVOrder::CVOrder()
 {
@@ -1162,4 +1162,17 @@ void CVOrder::UseHCCPTEnergy(bool value)
 void CVOrder::StopCPTEnergy()
 {
     _timerReadInput->stop();
+}
+
+QString CVOrder::GetDataCPTEnergy()
+{
+    QFile f(_linkCPTEnergy);
+    if(!f.open(QIODevice::ReadOnly))
+    {
+        emit Info(className,"Open file " + f.fileName() + " failed");
+        return QString();
+    }
+
+    QTextStream flux(&f);
+    return flux.readAll();
 }

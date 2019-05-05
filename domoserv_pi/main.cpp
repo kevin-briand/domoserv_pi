@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     printf("--------------------------------------------\n");
     printf("|                                          |\n");
     printf("|                DOMOSERV_PI               |\n");
-    printf("|                Version 1.01              |\n");
+    printf("|                Version 1.02              |\n");
     printf("|                                          |\n");
     printf("--------------------------------------------\n");
 

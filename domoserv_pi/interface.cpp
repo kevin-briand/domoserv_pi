@@ -1,6 +1,6 @@
 #include "interface.h"
 
-//Version 1.01
+//Version 1.02
 
 Interface::Interface()
 {  
@@ -411,6 +411,9 @@ QString Interface::ReadData(QString data, int level)
                     }
                     else if(data.contains("GetLog")) {
                         return first + "GetLog=" + cvOrder->GetLog();
+                    }
+                    else if(data.contains("GetDataCPTEnergy")) {
+                        return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy();
                     }
                 }
             }

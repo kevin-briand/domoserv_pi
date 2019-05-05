@@ -75,6 +75,7 @@ public:
     void UseHCCPTEnergy(bool value);
     void UseCPTEnergy(bool value);
     void StopCPTEnergy();
+    QString GetDataCPTEnergy();
 
 public slots:
     void Reload();
