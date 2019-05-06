@@ -9,6 +9,7 @@
 #include <iostream>
 #include <QKeyEvent>
 #include <QFile>
+#include <QDesktopServices>
 
 //TEST
 #ifndef Q_OS_WIN

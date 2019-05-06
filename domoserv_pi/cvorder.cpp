@@ -148,6 +148,8 @@ void CVOrder::Init()
     InitProg();
 
     _activateClass = true;
+
+    InitCPTEnergy();
 }
 
 void CVOrder::SetOutputState(int digitalIO, int state)
@@ -1018,24 +1020,24 @@ void CVOrder::InitCPTEnergy()
     //Set Var
     req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
     req.next();
-    if(req.value("value1").toInt() == 0)
+    if(req.value("Value1").toInt() == 0)
         return;
 
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(ImpCPTEnergy) + "'");
     req.next();
-    _ImpCPTEnergy = req.value("value1").toInt();
+    _ImpCPTEnergy = req.value("Value2").toInt();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(HCCPTEnergy) + "'");
     req.next();
-    _HCCPTEnergy = req.value("value1").toInt();
+    _HCCPTEnergy = req.value("Value2").toInt();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='ImpWattCPTEnergy'");
     req.next();
-    _WattCPTEnergy = req.value("value1").toInt();
+    _WattCPTEnergy = req.value("Value1").toInt();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='FileCPTEnergy'");
     req.next();
-    _linkCPTEnergy = req.value("value1").toString();
+    _linkCPTEnergy = req.value("Value1").toString();
 
 
     //Set GPIO
@@ -1053,8 +1055,9 @@ void CVOrder::InitCPTEnergy()
 
     //Run timer
     _timerReadInput = new QTimer;
+    connect(_timerReadInput,&QTimer::timeout,this,&CVOrder::TestInput);
     _timerReadInput->setSingleShot(false);
-    _timerReadInput->start(70);//70ms
+    _timerReadInput->start(30);//30ms
 
     emit Info(className,"[\033[0;32m  OK  \033[0m] Compteur d'énergie activé");
 }
@@ -1067,7 +1070,7 @@ void CVOrder::AddImp()
 
     int currentMinute = QTime::currentTime().minute();
 
-    if(currentMinute > 0 && currentMinute <= 29)
+    if(currentMinute >= 0 && currentMinute <= 29)
     {
         if(minute > 29 && totalImp > 0)
         {
@@ -1083,9 +1086,8 @@ void CVOrder::AddImp()
 
             totalImp = 0;
         }
-        totalImp++;
     }
-    else if(currentMinute > 29 && currentMinute < 60)
+    else if(currentMinute > 29 && currentMinute <= 60)
     {
         if(minute < 30 && totalImp > 0)
         {
@@ -1096,13 +1098,14 @@ void CVOrder::AddImp()
                     emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
             else {
                 QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh::30") << "|" << total;
+                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:30") << "|" << total;
             }
 
             totalImp = 0;
-        }
-        totalImp++;
+        }  
     }
+    minute = currentMinute;
+    totalImp++;
 }
 
 void CVOrder::TestInput()

@@ -43,14 +43,15 @@ bool Interface::Test()
         qDebug() <<  wiringPiSPIDataRW(1,buffer,100);
         qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
 #endif
-    StartUpdate();
+    //_update.start(10000);
     return true;
 }
 
 void Interface::StartUpdate()
 {
-    QProcess process;
-    process.start("../UPDATE");
+    QProcess p;
+    ShowInfo("this",QString::number(p.startDetached("/home/pi/domoserv_pi/UPDATE")));
+    qApp->exit(0);
 }
 
 void Interface::Init()
