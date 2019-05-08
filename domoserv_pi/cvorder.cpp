@@ -1081,7 +1081,7 @@ void CVOrder::AddImp()
                     emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
             else {
                 QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:00") << "|" << total;
+                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:00") << "|" << total << "\n";
             }
 
             totalImp = 0;
@@ -1098,7 +1098,7 @@ void CVOrder::AddImp()
                     emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
             else {
                 QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:30") << "|" << total;
+                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:30") << "|" << total << "\n";
             }
 
             totalImp = 0;
