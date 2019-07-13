@@ -9,11 +9,13 @@ int main(int argc, char *argv[])
     printf("--------------------------------------------\n");
     printf("|                                          |\n");
     printf("|                DOMOSERV_PI               |\n");
-    printf("|                Version 1.02              |\n");
+    printf("|                Version 1.1               |\n");
     printf("|                                          |\n");
     printf("--------------------------------------------\n");
 
-    Interface interface;
+    bool exit = false;
+    Interface interface(exit);
 
-    return a.exec();
+    if(!exit)
+        return a.exec();
 }

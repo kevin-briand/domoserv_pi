@@ -8,7 +8,7 @@
 #include <QProcess>
 
 #ifndef Q_OS_WIN
-    #include </home/firedream/raspi/sysroot/usr/include/wiringPi/wiringPi.h>
+    #include </home/kevin/raspi/sysroot/usr/include/wiringPi/wiringPi.h>
     #define ACT_WIRING_PI
 #endif
 
@@ -44,11 +44,17 @@ enum Status{
     Manual
 };
 
+enum Emplacement{
+    Indoor,
+    Outdoor
+};
+
 class CVOrder : public QObject
 {
     Q_OBJECT
 public:
     CVOrder();
+    //~CVOrder();
     void Init();
     void InitProg();
     void RemoveProg(int zone, QString date = nullptr);
@@ -81,7 +87,6 @@ public slots:
     void Reload();
 
 private slots:
-    void ReceiptDataFromUser(QTcpSocket *user, QString data);
     void ResetOutputState();
     void NextProgram(int zone);
     void RunChangeOrder();

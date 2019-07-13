@@ -2,32 +2,52 @@
 
 //Version 1.02
 
-Interface::Interface()
-{  
+Interface::Interface(bool &exit)
+{
+    //ARG
+    bool srv = false;
+    for(int i=0;i<qApp->arguments().count();i++)
+        if(qApp->arguments().at(i) == "-server")
+            srv = true;
 
-    Init();
-
-    server = new Server;
-    connect(server,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
-    server->Init();
-    connect(server,SIGNAL(Receipt(QTcpSocket*,QString,int)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString,int)));
-    connect(server, &Server::WebReceipt, this, &Interface::ReceiptDataFromWebServer);
-
-    cvOrder = new CVOrder;
-    QSqlQuery req;
-    req.exec("SELECT * FROM General WHERE Name='CVOrder'");
-    req.next();
-    if(req.value("Value1").toBool())
+    if(!srv)
     {
-        connect(cvOrder,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
-        cvOrder->Init();
-    }   
+        Configure conf;
+        exit = true;
+    }
+    else
+    {
+        Init();
+
+        server = new Server;
+        connect(server,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
+        server->Init();
+        connect(server,SIGNAL(Receipt(QTcpSocket*,QString,int)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString,int)));
+        connect(server, &Server::WebReceipt, this, &Interface::ReceiptDataFromWebServer);
+
+        cvOrder = new CVOrder;
+        QSqlQuery req;
+        req.exec("SELECT * FROM General WHERE Name='CVOrder'");
+        req.next();
+        if(req.value("Value1").toBool())
+        {
+            connect(cvOrder,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
+            cvOrder->Init();
+        }
 
 
-    Test();
+        Test();
 
-    connect(&_update,&QTimer::timeout,this,&Interface::StartUpdate);
+        connect(&_update,&QTimer::timeout,this,&Interface::StartUpdate);
+    }
 }
+/*
+Interface::~Interface()
+{
+    server->deleteLater();
+    cvOrder->deleteLater();
+    QFile::remove(_linkLog);
+}*/
 
 bool Interface::Test()
 {
@@ -43,14 +63,13 @@ bool Interface::Test()
         qDebug() <<  wiringPiSPIDataRW(1,buffer,100);
         qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
 #endif
-    //_update.start(10000);
     return true;
 }
 
 void Interface::StartUpdate()
 {
     QProcess p;
-    ShowInfo("this",QString::number(p.startDetached("/home/pi/domoserv_pi/UPDATE")));
+    ShowInfo("Update",QString::number(p.startDetached("/home/pi/domoserv_pi/UPDATE")));
     qApp->exit(0);
 }
 
@@ -90,7 +109,7 @@ void Interface::Init()
     if(req.value(0).toBool())
         _log = true;
 
-    _update.start(86400000*7);//24h * 7
+    //_update.start(86400000*7);//24h * 7
 }
 
 void Interface::ShowInfo(QString classText, QString text)
@@ -101,7 +120,7 @@ void Interface::ShowInfo(QString classText, QString text)
     if(_log)
     {
         QFile f(_linkLog);
-        if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
+        if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
             std::cout << "fail to open file 'log'\n";
         else
             f.write("\n" + result.toLatin1());
@@ -167,6 +186,18 @@ QString Interface::ReadData(QString data, int level)
                         QFile f(_linkLog);
                         f.open(QIODevice::ReadOnly);
                         QString result = "Config|General;GETLog=" + f.readAll();
+                        /*static qint64 offset = 0;
+                        while(!f.atEnd())
+                        {
+                            
+                        }
+                        f.seek(offset);
+                        f.read();
+                        if(f.atEnd())
+                            _allDataTransmitted = true;
+                        else
+                            _allDataTransmitted = false;
+                        */
                         return result;
                     }
                     //SET

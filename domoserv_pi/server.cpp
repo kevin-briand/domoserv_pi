@@ -42,8 +42,18 @@ Server::Server()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','','','','')");
     }
 }
+/*
+Server::~Server()
+{
+    Stop();
 
-void Server::Reload()
+    server->deleteLater();
+    UserServer->deleteLater();
+    webAdminServer->deleteLater();
+    webServer->deleteLater();
+}*/
+
+void Server::Stop()
 {
     //TCP SERVER
     for(int i=0;i<adminList.count();i++)
@@ -110,6 +120,11 @@ void Server::Reload()
         emit Info(className,"[\033[0;32m  OK  \033[0m] Server closed");
     else
         emit Info(className,"[\033[0;31mFAILED\033[0m] Server not closed");
+}
+
+void Server::Reload()
+{
+    Stop();
 
     //INIT SERVER
     server = new QTcpServer;
@@ -390,16 +405,15 @@ void Server::SslErrors(const QList<QSslError> &err)
 
 void Server::NewWebConnexion()
 {
-    if(webServer->hasPendingConnections())
+    while(webServer->hasPendingConnections())
     {
         QWebSocket *socket = webServer->nextPendingConnection();
         socket->setParent(webServer);
         connect(socket,&QWebSocket::textMessageReceived,this,&Server::ReceiptMessage);
         connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
-
         emit Info(className,"New Web user connected(" + socket->peerAddress().toString() + ")");
     }
-    if(webAdminServer->hasPendingConnections())
+    while(webAdminServer->hasPendingConnections())
     {
         QWebSocket *socket = webAdminServer->nextPendingConnection();
         socket->setParent(webAdminServer);

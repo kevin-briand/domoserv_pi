@@ -23,6 +23,8 @@ class Server : public QObject
     Q_OBJECT
 public:
     Server();
+    //~Server();
+    void Stop();
     void Reload();
     void Init();
     bool StartServer();

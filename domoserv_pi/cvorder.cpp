@@ -27,6 +27,20 @@ void CVOrder::Reload()
 
     Init();
 }
+/*
+CVOrder::~CVOrder()
+{
+    _timerZ1->stop();
+    _timerZ1->deleteLater();
+    _timerZ2->stop();
+    _timerZ2->deleteLater();
+    _timerPing->stop();
+    _timerPing->deleteLater();
+    _abs->stop();
+    _abs->deleteLater();
+    _timerReadInput->stop();
+    _timerReadInput->deleteLater();
+}*/
 
 void CVOrder::Init()
 {
@@ -400,17 +414,6 @@ void CVOrder::ChangeOrder(int order,int zone)
     emit Info(className,"Change order " + nameActualOrder.toLatin1() + " to " + nameNewOrder.toLatin1() + " in " + zoneSelect.toLatin1());
 }
 
-void CVOrder::ReceiptDataFromUser(QTcpSocket *user, QString data)
-{
-    if(data.split("|").count() != 2)
-        emit Info(className,"Data corrupted !");
-    else
-    {
-        if(data.split("|").at(0) == "CVOrder" && data.split(";").count() == 2)
-            ChangeOrder(data.split("|").at(1).split(";").at(0).toInt(),data.split("|").at(1).split(";").at(1).toInt());
-    }
-}
-
 void CVOrder::ResetOutputState()
 {
     SetOutputState(_z1Eco,_off);
@@ -750,10 +753,10 @@ void CVOrder::AddIp(QString ip)
 {
     if(ip.split(".").count() == 4)
     {
-        unsigned int sIp1 = ip.split(".").at(0).toInt();
-        unsigned int sIp2 = ip.split(".").at(1).toInt();
-        unsigned int sIp3 = ip.split(".").at(2).toInt();
-        unsigned int sIp4 = ip.split(".").at(3).toInt();
+        unsigned int sIp1 = ip.split(".").at(0).toUInt();
+        unsigned int sIp2 = ip.split(".").at(1).toUInt();
+        unsigned int sIp3 = ip.split(".").at(2).toUInt();
+        unsigned int sIp4 = ip.split(".").at(3).toUInt();
         if(sIp1 <= 255 && sIp2 <= 255 && sIp3 <= 255 && sIp4 <= 255)
         {
             QSqlQuery req;
