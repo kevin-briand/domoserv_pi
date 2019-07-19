@@ -11,6 +11,7 @@
 #include <QHostAddress>
 #include <QWebSocket>
 #include <cvorder.h>
+#include <wiringPi/wiringPi.h>
 
 #define GREEN "\033[0;32m"
 #define RED "\033[0;31m"
@@ -48,6 +49,7 @@ private:
 
 private slots:
     void Receipt_Data();
+    void Receipt_Message(QString text);
     void Send_Data(QString data = nullptr);
 };
 

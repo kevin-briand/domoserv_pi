@@ -63,59 +63,96 @@ void Configure::GeneralMenu()
 
 void Configure::Test()
 {
-    cout << "Connection au serveur User..." << endl;
-
-    bool webSock = false;
     QSqlQuery req;
-    req.exec("SELECT * FROM General WHERE Name='WebSocket'");
-    req.next();
-    if(req.value("Value1").toInt())
-    {
-        cout << "Type : WebSocket" << endl;
-        webSock = true;
-    }
-    else
-        cout << "Type : TCP" << endl;
+    QEventLoop loop;
 
-    req.exec("SELECT * FROM General WHERE Name='WebPassword'");
-    req.next();
-
-    if(webSock)
-    {
-        req.exec("SELECT * FROM General WHERE Name='WebPort'");
-        req.next();
-        QEventLoop loop;
-        connect(&webSocket,&QWebSocket::connected,&loop,&QEventLoop::quit);
-        connect(&webSocket,&QWebSocket::disconnected,&loop,&QEventLoop::quit);
-        webSocket.open(QUrl("ws://127.0.0.1:" + req.value("Value1").toString()));
-        loop.exec();
-
-        if(webSocket.state() == QAbstractSocket::ConnectedState)
-            cout << "Connecté au serveur" << endl;
-        else
-            cout << "Echec de connection au serveur" << endl;
-    }
+    //Init WiringPi
+    int z1Eco(0), z1HG(0), z2Eco(0), z2HG(0);
+#ifdef ACT_WIRING_PI
+    if(wiringPiSetup() < 0)
+        cout << RED << "wiringPi not started" << NOCOLOR << endl;
     else
     {
-        socket = new QTcpSocket;
-        connect(socket,SIGNAL(readyRead()),this,SLOT(Receipt_Data()));
-        connect(socket,SIGNAL(connected()),this,SLOT(Send_Data()));
-        req.exec("SELECT * FROM General WHERE Name='WebPort'");
+        //Init pins
+        req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='0'");
         req.next();
-        socket->connectToHost("127.0.0.1",req.value("Value1").toInt());
-        if(socket->waitForConnected())
-            cout << "Connecté au serveur" << endl;
-        else
-            cout << "Echec de connection au serveur" << endl;
+        pinMode(req.value("Value2").toInt(),OUTPUT);
+        z1Eco = req.value("Value2").toInt();
+        req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='1'");
+        req.next();
+        pinMode(req.value("Value2").toInt(),OUTPUT);
+        z1HG= req.value("Value2").toInt();
+        req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='2'");
+        req.next();
+        pinMode(req.value("Value2").toInt(),OUTPUT);
+        z2Eco = req.value("Value2").toInt();
+        req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='3'");
+        req.next();
+        pinMode(req.value("Value2").toInt(),OUTPUT);
+        z2HG = req.value("Value2").toInt();
+
+        cout << GREEN << "wiringPi started" << NOCOLOR << endl;
+    }
+#endif
+
+    int on(1), off(0);
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='4'");
+    req.next();
+    if(req.value("Value2").toInt() == 1)
+    {
+        on = 0;
+        off = 1;
     }
 
-    cout << "Activation Z1 Eco : " << endl;
+    QTimer timer;
+    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
+    cout << "Activation Z1 Eco" << endl;
+    digitalWrite(z1Eco,on);
+    timer.start(5000);
+    loop.exec();
+    digitalWrite(z1Eco,off);
+
     cout << "Activation Z1 Hors Gel" << endl;
+    digitalWrite(z1HG,on);
+    timer.start(5000);
+    loop.exec();
+    digitalWrite(z1HG,off);
+
     cout << "Activation Z2 Eco" << endl;
+    digitalWrite(z2Eco,on);
+    timer.start(5000);
+    loop.exec();
+    digitalWrite(z2Eco,off);
+
     cout << "Activation Z2 Hors Gel" << endl;
+    digitalWrite(z2HG,on);
+    timer.start(5000);
+    loop.exec();
+    digitalWrite(z1HG,off);
+
     cout << "Sondes de température connectées : " << endl;
+    QDir dir;
+    dir.setPath("/sys/bus/w1/devices");
+    QStringList list = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for(int i = 0;i < list.count()-1;i++) {
+        cout << i+1 << " - " << list.at(i).toStdString();
+        QFile f(dir.path() + "/" + list.at(i) + "/w1_slave");
+        if(!f.open(QIODevice::ReadOnly)) {
+            cout << "Echec d'ouverture du fichier" << endl;
+        }
+        else {
+            QString result = f.readAll();
+            cout << " : " << result.split("=").last().toDouble() / 1000 << " degrés Celcius" << endl << endl;
+            f.close();
+        }
+    }
 
     GeneralMenu();
+}
+
+void Configure::Receipt_Message(QString text)
+{
+    _dataResult = text;
 }
 
 void Configure::StateMenu()
@@ -340,11 +377,20 @@ void Configure::ConfigCVOrderMenu()
 
     cout << "7 - Sonde de température" << endl;
 
-    cout << "8 - Retour" << endl;
+    cout << "8 - Compteur d'énergie : ";
+    req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
+    req.next();
+    if(req.value("Value1").toInt() == 0)
+        cout << RED << "Désactivé" << NOCOLOR << endl;
+    else {
+        cout << GREEN << "Activé" << NOCOLOR << endl;
+    }
+
+    cout << "9 - Retour" << endl;
 
     int result = 0;
 
-    while(result < 1 || result > 8)
+    while(result < 1 || result > 9)
     {
         cout << "Choix : ";
         cin >> result;
@@ -412,6 +458,17 @@ void Configure::ConfigCVOrderMenu()
         SondeTempMenu();
         break;
     case 8:
+        req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
+        req.next();
+        if(req.value("Value1").toInt() == 0) {
+            req.exec("UPDATE CVOrder SET Value1='1' WHERE Name='ActCPTEnergy'");
+        }
+        else {
+            req.exec("UPDATE CVOrder SET Value1='0' WHERE Name='ActCPTEnergy'");
+        }
+        ConfigCVOrderMenu();
+        break;
+    case 9:
         ConfigMenu();
     }
 }
