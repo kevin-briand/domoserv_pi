@@ -31,6 +31,8 @@ Server::Server()
         int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
         id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','ActAdminServer','0','','','')");
+        id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','0','','','')");
@@ -148,34 +150,39 @@ void Server::Init()
     emit Info(className,"Starting server");
     dataSize = 0;
 
-    //Server
+    //Server Admin
     //PKEY
     GeneratePKEY();
     emit Info(className,"PKEY generated : " + PKEY + "");
 
-    //Password
-    emit Info(className,"------------------Server Admin Info-------------------");
+
     QSqlQuery req;
-    req.exec("SELECT Value1 FROM General WHERE Name='Password'");
+    req.exec("SELECT Value1 FROM General WHERE Name='ActAdminServer'");
     req.next();
-    password = req.value(0).toString();
-    emit Info(className,"Password = " + password + "");
+    if(req.value(0).toInt() == 1) {
+        //Password
+        emit Info(className,"------------------Server Admin Info-------------------");
+        req.exec("SELECT Value1 FROM General WHERE Name='Password'");
+        req.next();
+        password = req.value(0).toString();
+        emit Info(className,"Password = " + password + "");
 
-    //Port
-    req.exec("SELECT Value1 FROM General WHERE Name='Port'");
-    req.next();
-    emit Info(className,"Port = " + req.value(0).toString());
+        //Port
+        req.exec("SELECT Value1 FROM General WHERE Name='Port'");
+        req.next();
+        emit Info(className,"Port = " + req.value(0).toString());
 
-    //Run server
-    if(StartServer())
-        emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
-    else
-        emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
+        //Run server
+        if(StartServer())
+            emit Info(className,"[\033[0;32m  OK  \033[0m] Server started");
+        else
+            emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
 
-    emit Info(className,"------------------------------------------------------");
+        emit Info(className,"------------------------------------------------------");
+    }
 
 
-    //WebServer
+    //Server User
     emit Info(className,"------------------Server User Info--------------------");
 
     //webPassword

@@ -648,40 +648,47 @@ void Configure::ConfigServerMenu()
 
     QSqlQuery req;
 
+    req.exec("SELECT * FROM General WHERE Name='ActAdminServer'");
+    req.next();
+    QString value = QString(RED) + "Inactif" + QString(NOCOLOR);
+    if(req.value("Value1").toBool())
+        value = QString(GREEN) + "Actif" + QString(NOCOLOR);
+    cout << "1 - Serveur admin : " << value.toStdString() << endl;
+
     req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
     req.next();
-    QString value = "TCP";
+    value = "TCP";
     if(req.value("Value1").toBool())
         value = "WebSocket";
-    cout << "1 - Changer type serveur admin : " << value.toStdString() << endl;
+    cout << "2 - Changer type serveur admin : " << value.toStdString() << endl;
 
     req.exec("SELECT * FROM General WHERE Name='Port'");
     req.next();
-    cout << "2 - Changer port serveur admin : " << req.value("Value1").toString().toStdString() << endl;
+    cout << "3 - Changer port serveur admin : " << req.value("Value1").toString().toStdString() << endl;
 
     req.exec("SELECT * FROM General WHERE Name='Password'");
     req.next();
-    cout << "3 - Changer mot de passe admin : " << req.value("Value1").toString().toStdString() << endl;
+    cout << "4 - Changer mot de passe admin : " << req.value("Value1").toString().toStdString() << endl;
 
     req.exec("SELECT * FROM General WHERE Name='WebSocket'");
         req.next();
         value = "TCP";
         if(req.value("Value1").toBool())
             value = "WebSocket";
-    cout << "4 - Changer type serveur utilisateur : " << value.toStdString() << endl;
+    cout << "5 - Changer type serveur utilisateur : " << value.toStdString() << endl;
 
     req.exec("SELECT * FROM General WHERE Name='WebPort'");
     req.next();
-    cout << "5 - Changer port serveur utilisateur : " << req.value("Value1").toString().toStdString() << endl;
+    cout << "6 - Changer port serveur utilisateur : " << req.value("Value1").toString().toStdString() << endl;
 
     req.exec("SELECT * FROM General WHERE Name='WebPassword'");
     req.next();
-    cout << "6 - Changer mot de passe utilisateur : " << req.value("Value1").toString().toStdString() << endl;
-    cout << "7 - Retour" << endl;
+    cout << "7 - Changer mot de passe utilisateur : " << req.value("Value1").toString().toStdString() << endl;
+    cout << "8 - Retour" << endl;
 
     int result = 0;
 
-    while(result < 1 || result > 7)
+    while(result < 1 || result > 8)
     {
         cout << "Choix : ";
         cin >> result;
@@ -691,6 +698,15 @@ void Configure::ConfigServerMenu()
     string v;
     switch (result) {
     case 1:
+        req.exec("SELECT * FROM General WHERE Name='ActAdminServer'");
+        req.next();
+        value = "1";
+        if(req.value("Value1").toBool())
+            value = "0";
+        req.exec("UPDATE General SET Value1='" + value + "' WHERE Name='ActAdminServer'");
+        ConfigServerMenu();
+        break;
+    case 2:
         req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
         req.next();
         value = "1";
@@ -699,7 +715,7 @@ void Configure::ConfigServerMenu()
         req.exec("UPDATE General SET Value1='" + value + "' WHERE Name='WebAdminSocket'");
         ConfigServerMenu();
         break;
-    case 2:
+    case 3:
         cout << "Saisissez un nouveau port : ";
         cin >> p;
         cout << endl;
@@ -709,14 +725,14 @@ void Configure::ConfigServerMenu()
             req.exec("UPDATE General SET Value1='" + QString::number(p) + "' WHERE Name='Port'");
         ConfigServerMenu();
         break;
-    case 3:
+    case 4:
         cout << "Saisissez un nouveau mot de passe : ";
         cin >> v;
         cout << endl;
         req.exec("UPDATE General SET Value1='" + QString::fromStdString(v) + "' WHERE Name='Password'");
         ConfigServerMenu();
         break;
-    case 4:
+    case 5:
         req.exec("SELECT * FROM General WHERE Name='WebSocket'");
         req.next();
         value = "1";
@@ -725,7 +741,7 @@ void Configure::ConfigServerMenu()
         req.exec("UPDATE General SET Value1='" + value + "' WHERE Name='WebSocket'");
         ConfigServerMenu();
         break;
-    case 5:
+    case 6:
         cout << "Saisissez un nouveau port : ";
         cin >> p;
         cout << endl;
@@ -735,14 +751,14 @@ void Configure::ConfigServerMenu()
             req.exec("UPDATE General SET Value1='" + QString::number(p) + "' WHERE Name='WebPort'");
         ConfigServerMenu();
         break;
-    case 6:
+    case 7:
         cout << "Saisissez un nouveau mot de passe : ";
         cin >> v;
         cout << endl;
         req.exec("UPDATE General SET Value1='" + QString::fromStdString(v) + "' WHERE Name='WebPassword'");
         ConfigServerMenu();
         break;
-    case 7:
+    case 8:
         ConfigMenu();
     }
 }
