@@ -386,11 +386,23 @@ void Configure::ConfigCVOrderMenu()
         cout << GREEN << "Activé" << NOCOLOR << endl;
     }
 
-    cout << "9 - Retour" << endl;
+    req.exec("SELECT * FROM CVOrder WHERE Name='ImpWattCPTEnergy'");
+    req.next();
+    cout << "9 - Nombre de watt par impulsion : " << QString::number(req.value("Value1").toInt()).toStdString() << " Wh" << endl;
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='GPIO' AND Value1='" + QString::number(ImpCPTEnergy) + "'");
+    req.next();
+    cout << "10 - Changer GPIO entrée compteur : " << req.value("Value2").toString().toStdString() << endl;
+
+    req.exec("SELECT * FROM CVOrder WHERE Name='FileCPTEnergy'");
+    req.next();
+    cout << "11 - Emplacement dossier contenant les fichiers data compteur : " << req.value("Value1").toString().toStdString() << endl;
+
+    cout << "12 - Retour" << endl;
 
     int result = 0;
 
-    while(result < 1 || result > 9)
+    while(result < 1 || result > 12)
     {
         cout << "Choix : ";
         cin >> result;
@@ -398,6 +410,7 @@ void Configure::ConfigCVOrderMenu()
     }
     int p;
     string v;
+    QString v2;
     switch (result) {
     case 1:
         cout << "1 - Horloge" << endl;
@@ -469,6 +482,30 @@ void Configure::ConfigCVOrderMenu()
         ConfigCVOrderMenu();
         break;
     case 9:
+        cout << "Saisissez une nouvelle valeur en wh ";
+        cin >> p;
+        if(p > 0)
+            req.exec("UPDATE CVOrder SET Value1='" + QString::number(p) + "' WHERE Name='ImpWattCPTEnergy'");
+        cout << endl;
+        ConfigCVOrderMenu();
+        break;
+    case 10:
+        cout << "Saisissez une nouvelle valeur de 0 à 27 : ";
+        cin >> p;
+        cout << endl;
+        if(p < 27)
+            req.exec("UPDATE CVOrder SET Value2='" + QString::number(p) + "' WHERE Name='GPIO' AND Value1='" + QString::number(ImpCPTEnergy) + "'");
+        ConfigCVOrderMenu();
+        break;
+    case 11:
+        cout << "Saisissez un nouveau chemin vers le dossier data du compteur : ";
+        cin >> v;
+        cout << endl;
+        if(QString::fromStdString(v).split("/").last() == "" && QString::fromStdString(v).split("/").count() >= 2)
+            req.exec("UPDATE CVOrder SET Value1='" + QString::fromStdString(v) + "' WHERE Name='FileCPTEnergy'");
+        ConfigCVOrderMenu();
+        break;
+    case 12:
         ConfigMenu();
     }
 }

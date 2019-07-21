@@ -81,7 +81,7 @@ public:
     void UseHCCPTEnergy(bool value);
     void UseCPTEnergy(bool value);
     void StopCPTEnergy();
-    QString GetDataCPTEnergy();
+    QString GetDataCPTEnergy(int day, int month, int year);
 
 public slots:
     void Reload();
@@ -125,7 +125,6 @@ private:
     bool _activateClass = false;
     QString _linkHistory;
     QTimer *_timerReadInput;
-    QString _linkCPTEnergy;
 };
 
 #endif // CVORDER_H

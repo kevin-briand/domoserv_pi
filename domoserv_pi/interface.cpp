@@ -445,7 +445,13 @@ QString Interface::ReadData(QString data, int level)
                         return first + "GetLog=" + cvOrder->GetLog();
                     }
                     else if(data.contains("GetDataCPTEnergy")) {
-                        return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy();
+                        QStringList date = data.split(";").last().split("-");
+                        if(date.count() != 3)
+                            return QString("Error");
+                        int day = date.at(0).toInt();
+                        int month = date.at(1).toInt();
+                        int year = date.at(2).toInt();
+                        return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy(day,month,year);
                     }
                 }
             }

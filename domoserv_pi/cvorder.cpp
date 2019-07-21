@@ -1008,7 +1008,7 @@ void CVOrder::InitCPTEnergy()
         id++;
         int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','" + QString::number(HCCPTEnergy) + "','5','','')");
         id++;
-        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/CPTEnergy.log','','','')");
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/,'','','')");
         id++;
         int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','1','','','')");
 
@@ -1019,6 +1019,12 @@ void CVOrder::InitCPTEnergy()
         else
             emit Info(className,"[\033[0;31mFAILED\033[0m] Rows not created ");
     }
+
+    //Create directory
+    req.exec("SELECT Value1 FROM CVOrder WHERE Name='FileCPTEnergy'");
+    req.next();
+    QDir dir;
+    dir.mkpath(req.value(0).toString());
 
     //Set Var
     req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
@@ -1037,10 +1043,6 @@ void CVOrder::InitCPTEnergy()
     req.exec("SELECT * FROM CVOrder WHERE Name='ImpWattCPTEnergy'");
     req.next();
     _WattCPTEnergy = req.value("Value1").toInt();
-
-    req.exec("SELECT * FROM CVOrder WHERE Name='FileCPTEnergy'");
-    req.next();
-    _linkCPTEnergy = req.value("Value1").toString();
 
 
     //Set GPIO
@@ -1079,12 +1081,12 @@ void CVOrder::AddImp()
         {
             int total = totalImp * _WattCPTEnergy;
 
-            QFile f(_linkCPTEnergy);
+            QFile f(QDate::currentDate().toString("dd-MM-yyyy") + ".log");
             if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
-                    emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
+                    emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
             else {
                 QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:00") << "|" << total << "\n";
+                flux << QDateTime::currentDateTime().toString("hh:00") << "|" << total << "\n";
             }
 
             totalImp = 0;
@@ -1096,12 +1098,12 @@ void CVOrder::AddImp()
         {
             int total = totalImp * _WattCPTEnergy;
 
-            QFile f(_linkCPTEnergy);
+            QFile f(QDate::currentDate().toString("dd-MM-yyyy") + ".log");
             if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
-                    emit Info(className,"Error open file CPTEnergy.log : " + f.errorString());
+                    emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
             else {
                 QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:30") << "|" << total << "\n";
+                flux << QDateTime::currentDateTime().toString("hh:30") << "|" << total << "\n";
             }
 
             totalImp = 0;
@@ -1170,9 +1172,11 @@ void CVOrder::StopCPTEnergy()
     _timerReadInput->stop();
 }
 
-QString CVOrder::GetDataCPTEnergy()
+QString CVOrder::GetDataCPTEnergy(int day,int month,int year)
 {
-    QFile f(_linkCPTEnergy);
+    QDate date;
+    date.setDate(year,month,day);
+    QFile f(date.toString("dd-MM-yyyy") + ".log");
     if(!f.open(QIODevice::ReadOnly))
     {
         emit Info(className,"Open file " + f.fileName() + " failed");
