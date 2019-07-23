@@ -1025,6 +1025,7 @@ void CVOrder::InitCPTEnergy()
     req.next();
     QDir dir;
     dir.mkpath(req.value(0).toString());
+    _pathEnergy = req.value(0).toString();
 
     //Set Var
     req.exec("SELECT * FROM CVOrder WHERE Name='ActCPTEnergy'");
@@ -1081,7 +1082,7 @@ void CVOrder::AddImp()
         {
             int total = totalImp * _WattCPTEnergy;
 
-            QFile f(QDate::currentDate().toString("dd-MM-yyyy") + ".log");
+            QFile f(_pathEnergy + QDate::currentDate().toString("dd-MM-yyyy") + ".log");
             if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
                     emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
             else {
@@ -1098,7 +1099,7 @@ void CVOrder::AddImp()
         {
             int total = totalImp * _WattCPTEnergy;
 
-            QFile f(QDate::currentDate().toString("dd-MM-yyyy") + ".log");
+            QFile f(_pathEnergy + QDate::currentDate().toString("dd-MM-yyyy") + ".log");
             if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
                     emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
             else {
@@ -1176,7 +1177,7 @@ QString CVOrder::GetDataCPTEnergy(int day,int month,int year)
 {
     QDate date;
     date.setDate(year,month,day);
-    QFile f(date.toString("dd-MM-yyyy") + ".log");
+    QFile f(_pathEnergy + date.toString("dd-MM-yyyy") + ".log");
     if(!f.open(QIODevice::ReadOnly))
     {
         emit Info(className,"Open file " + f.fileName() + " failed");
@@ -1185,4 +1186,24 @@ QString CVOrder::GetDataCPTEnergy(int day,int month,int year)
 
     QTextStream flux(&f);
     return flux.readAll();
+}
+
+void CVOrder::InitTemp()
+{
+    emit Info(className,"Lecture température démarré");
+    connect(&_timerReadTemp,&QTimer::timeout,this,&CVOrder::AddTempToFile);
+    _timerReadTemp.setSingleShot(false);
+    _timerReadTemp.start(1800*1000);
+}
+
+void CVOrder::AddTempToFile()
+{
+    int minute = QTime::currentTime().minute();
+
+    if(minute < 30) {
+        QFile f();
+    }
+    else if(minute < 60) {
+
+    }
 }

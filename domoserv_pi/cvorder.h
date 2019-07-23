@@ -82,6 +82,7 @@ public:
     void UseCPTEnergy(bool value);
     void StopCPTEnergy();
     QString GetDataCPTEnergy(int day, int month, int year);
+    void InitTemp();
 
 public slots:
     void Reload();
@@ -93,6 +94,7 @@ private slots:
     bool PingNetwork();
     void AddImp();
     void TestInput();
+    void AddTempToFile();
 
 signals:
     void Info(QString textClass, QString text);
@@ -124,7 +126,10 @@ private:
     bool _endABS = false;
     bool _activateClass = false;
     QString _linkHistory;
+    QString _pathEnergy;
     QTimer *_timerReadInput;
+    QTimer _timerReadTemp;
+    QString _pathTemp;
 };
 
 #endif // CVORDER_H
