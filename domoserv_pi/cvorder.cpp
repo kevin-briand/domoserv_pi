@@ -98,7 +98,9 @@ void CVOrder::Init()
     _timerZ2 = new QTimer;
     _timerPing = new QTimer;
     _abs = new QTimer;
-    _linkHistory = "/home/pi/domoserv_pi/gestCV.log";
+    _linkHistory = "/home/pi/domoserv_pi/data/order/";
+    QDir dir;
+    dir.mkpath(_linkHistory);
 
     //define GPIO
     req.exec("SELECT * FROM CVOrder WHERE Name='GPIO'");
@@ -399,13 +401,13 @@ void CVOrder::ChangeOrder(int order,int zone)
         SetOutputState(output,_on);
 
     //history
-    QFile f(_linkHistory);
+    QFile f(_linkHistory + QDate::currentDate().toString("jj-MM-yyyy.log"));
     if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
         emit Info(className,"Error to open file " + _linkHistory + " (" + f.errorString() + ")");
     else
     {
         QTextStream flux(&f);
-        flux << "date=" << QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm") << ";zone=" << zone << ";order=" << order << "\n";
+        flux << "time=" << QTime::currentTime().toString("hh:mm") << ";zone=" << zone << ";order=" << order << "\n";
     }
 
     QSqlQuery req;
@@ -1008,7 +1010,7 @@ void CVOrder::InitCPTEnergy()
         id++;
         int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','" + QString::number(HCCPTEnergy) + "','5','','')");
         id++;
-        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/,'','','')");
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/data/cptenergy/,'','','')");
         id++;
         int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','1','','','')");
 
@@ -1190,6 +1192,24 @@ QString CVOrder::GetDataCPTEnergy(int day,int month,int year)
 
 void CVOrder::InitTemp()
 {
+    QSqlQuery req;
+    req.exec("SELECT * FROM CVOrder WHERE Name='TempPath'");
+    if(!req.next()) {
+        req.exec("SELECT MAX(ID) FROM CVOrder");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','TempPath','/home/pi/domoserv_pi/data/temperature/','','','')");
+    }
+
+    req.exec("SELECT Value1 FROM CVOrder WHERE Name='TempPath'");
+    req.next();
+    _pathTemp = req.value(0).toString();
+
+    //create dir
+    QDir dir;
+    dir.mkpath(_pathTemp + "/interieur");
+    dir.mkpath(_pathTemp + "/exterieur");
+
     emit Info(className,"Lecture température démarré");
     connect(&_timerReadTemp,&QTimer::timeout,this,&CVOrder::AddTempToFile);
     _timerReadTemp.setSingleShot(false);
@@ -1199,11 +1219,44 @@ void CVOrder::InitTemp()
 void CVOrder::AddTempToFile()
 {
     int minute = QTime::currentTime().minute();
+    QString strMinute;
 
     if(minute < 30) {
-        QFile f();
+        strMinute = "30";
     }
     else if(minute < 60) {
-
+        strMinute = "00";
     }
+
+    QSqlQuery req;
+    req.exec("SELECT * FROM CVOrder WHERE Name='Temp'");
+    while(req.next()) {
+        QString id = req.value("Value2").toString();
+        int emp = req.value("Value1").toInt();
+        QString strEmp;
+        if(emp == Indoor) {
+            strEmp = "interieur/";
+        }
+        else {
+            strEmp = "exterieur/";
+        }
+
+
+        QFile f("/sys/bus/w1/devices/" + id + "/w1_slave");
+        if(!f.open(QIODevice::ReadOnly)) {
+            emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
+        }
+        else {
+            QString result = f.readAll();
+            QFile f2(_pathTemp + strEmp + QDate::currentDate().toString("dd-MM-yyyy.log"));
+            if(!f2.open(QIODevice::WriteOnly | QIODevice::Append)) {
+                emit Info(className,"Echec d'ouverture du fichier " + f2.fileName());
+            }
+            QTextStream flux(&f2);
+
+            flux << QTime::currentTime().toString("hh:") + strMinute + "|" + QString::number(result.split("=").last().toDouble() / 1000) << endl;
+            f.close();
+        }
+    }
+
 }

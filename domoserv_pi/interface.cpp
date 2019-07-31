@@ -103,7 +103,7 @@ void Interface::Init()
         int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
-    _linkLog = "/home/pi/domoserv_pi/domoserv_pi.log";
+    _linkLog = "/home/pi/domoserv_pi/data/domoserv_pi.log";
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
     if(req.value(0).toBool())
