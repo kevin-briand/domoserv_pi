@@ -93,7 +93,10 @@ void CVOrder::Init()
             emit Info(className,"[\033[0;31mFAILED\033[0m] GPIO Rows not created ");
     }
 
-    //
+    req.exec("CREATE TABLE IF NOT EXISTS Temperature ('ID' INT, 'Date' TEXT, 'Time' TEXT, 'Pos' INT, 'Value' REAL)");
+    req.exec("CREATE TABLE IF NOT EXISTS State ('ID' INT, 'Date' TEXT, 'Time' TEXT, 'Zone' INT, 'State' INT)");
+    req.exec("CREATE TABLE IF NOT EXISTS Energy ('ID' INT, 'Date' TEXT, 'Time' TEXT, 'Wh' INT)");
+
     _timerZ1 = new QTimer;
     _timerZ2 = new QTimer;
     _timerPing = new QTimer;
@@ -166,6 +169,7 @@ void CVOrder::Init()
     _activateClass = true;
 
     InitCPTEnergy();
+    InitTemp();
 }
 
 void CVOrder::SetOutputState(int digitalIO, int state)
@@ -315,6 +319,35 @@ void CVOrder::RunChangeOrder()
     }
 }
 
+bool CVOrder::ReadNetwork()
+{
+    QProcess proc;
+    QSqlQuery req;
+    QStringList ip;
+    req.exec("SELECT * FROM CVOrder WHERE Name='IpPing'");
+    while(req.next())
+        ip.append(req.value("Value1").toString());
+
+    bool success(false);
+    for(int i=0;i<ip.count();i++)
+    {
+        proc.start("ping -c 5 " + ip.at(i));
+        proc.waitForFinished();
+        QByteArray ba = proc.readAll();
+        QString result = ba;
+        QStringList result2 = result.split("\n");
+
+        for(int i2=0;i2<result2.count();i2++)//read output
+            if(result2.at(i2).contains("packets transmitted"))
+                if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
+                {
+                    success = true;
+                    emit Info(className,ip.at(i) + " found on network");
+                }
+    }
+    return success;
+}
+
 void CVOrder::ChangeOrder(int order,int zone)
 {
     int output = 0;
@@ -401,16 +434,14 @@ void CVOrder::ChangeOrder(int order,int zone)
         SetOutputState(output,_on);
 
     //history
-    QFile f(_linkHistory + QDate::currentDate().toString("jj-MM-yyyy.log"));
-    if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
-        emit Info(className,"Error to open file " + _linkHistory + " (" + f.errorString() + ")");
-    else
-    {
-        QTextStream flux(&f);
-        flux << "time=" << QTime::currentTime().toString("hh:mm") << ";zone=" << zone << ";order=" << order << "\n";
-    }
-
     QSqlQuery req;
+    req.exec("SELECT MAX(ID) FROM Order");
+    req.next();
+    int id = req.value(0).toInt()+1;
+    req.exec("INSERT INTO Order VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") + "','" +
+             QTime::currentTime().toString("hh:mm") + "','" + QString::number(zone) + "','" + QString::number(order) + "')");
+
+    //save state
     req.exec("UPDATE CVOrder SET Value1='" + QString::number(order) + "' WHERE Name='ActualZ" + QString::number(zone+1) + "'");
 
     emit Info(className,"Change order " + nameActualOrder.toLatin1() + " to " + nameNewOrder.toLatin1() + " in " + zoneSelect.toLatin1());
@@ -1075,6 +1106,8 @@ void CVOrder::AddImp()
     //sauvegarde en fichier toute les 30mn
     static int totalImp = 0;
     static int minute = 0;
+    bool save = false;
+    QString time = "00";
 
     int currentMinute = QTime::currentTime().minute();
 
@@ -1082,35 +1115,27 @@ void CVOrder::AddImp()
     {
         if(minute > 29 && totalImp > 0)
         {
-            int total = totalImp * _WattCPTEnergy;
-
-            QFile f(_pathEnergy + QDate::currentDate().toString("dd-MM-yyyy") + ".log");
-            if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
-                    emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
-            else {
-                QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("hh:00") << "|" << total << "\n";
-            }
-
-            totalImp = 0;
+            save = true;
         }
     }
     else if(currentMinute > 29 && currentMinute <= 60)
     {
         if(minute < 30 && totalImp > 0)
         {
-            int total = totalImp * _WattCPTEnergy;
-
-            QFile f(_pathEnergy + QDate::currentDate().toString("dd-MM-yyyy") + ".log");
-            if(!f.open(QIODevice::WriteOnly | QIODevice::Append))
-                    emit Info(className,"Error open file " + QDate::currentDate().toString("dd-MM-yyyy") + ".log : " + f.errorString());
-            else {
-                QTextStream flux(&f);
-                flux << QDateTime::currentDateTime().toString("hh:30") << "|" << total << "\n";
-            }
-
-            totalImp = 0;
+            save = true;
+            time = "30";
         }  
+    }
+    if(save)
+    {
+        int total = totalImp * _WattCPTEnergy;
+        QSqlQuery req;
+        req.exec("SELECT MAX(ID) FROM Energy");
+        req.next();
+        int id = req.value(0).toInt()+1;
+        req.exec("INSERT INTO Energy VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") + "','" +
+                 QTime::currentTime().toString("hh:") + time + "','" + QString::number(total) + "')");
+        totalImp = 0;
     }
     minute = currentMinute;
     totalImp++;
@@ -1175,19 +1200,16 @@ void CVOrder::StopCPTEnergy()
     _timerReadInput->stop();
 }
 
-QString CVOrder::GetDataCPTEnergy(int day,int month,int year)
+QString CVOrder::GetDataCPTEnergy(QDate first, QDate end)
 {
-    QDate date;
-    date.setDate(year,month,day);
-    QFile f(_pathEnergy + date.toString("dd-MM-yyyy") + ".log");
-    if(!f.open(QIODevice::ReadOnly))
+    QSqlQuery req;
+    QString result;
+    req.exec("SELECT * FROM Energy WHERE Date BETWEEN '" + first.toString("yyyy-MM-dd") + "' AND '" + end.toString("yyyy-MM-dd") + "'");
+    while(req.next())
     {
-        emit Info(className,"Open file " + f.fileName() + " failed");
-        return QString();
+        result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "\r";
     }
-
-    QTextStream flux(&f);
-    return flux.readAll();
+    return result;
 }
 
 void CVOrder::InitTemp()
@@ -1204,11 +1226,6 @@ void CVOrder::InitTemp()
     req.exec("SELECT Value1 FROM CVOrder WHERE Name='TempPath'");
     req.next();
     _pathTemp = req.value(0).toString();
-
-    //create dir
-    QDir dir;
-    dir.mkpath(_pathTemp + "/interieur");
-    dir.mkpath(_pathTemp + "/exterieur");
 
     emit Info(className,"Lecture température démarré");
     connect(&_timerReadTemp,&QTimer::timeout,this,&CVOrder::AddTempToFile);
@@ -1233,13 +1250,6 @@ void CVOrder::AddTempToFile()
     while(req.next()) {
         QString id = req.value("Value2").toString();
         int emp = req.value("Value1").toInt();
-        QString strEmp;
-        if(emp == Indoor) {
-            strEmp = "interieur/";
-        }
-        else {
-            strEmp = "exterieur/";
-        }
 
 
         QFile f("/sys/bus/w1/devices/" + id + "/w1_slave");
@@ -1248,15 +1258,65 @@ void CVOrder::AddTempToFile()
         }
         else {
             QString result = f.readAll();
-            QFile f2(_pathTemp + strEmp + QDate::currentDate().toString("dd-MM-yyyy.log"));
-            if(!f2.open(QIODevice::WriteOnly | QIODevice::Append)) {
-                emit Info(className,"Echec d'ouverture du fichier " + f2.fileName());
-            }
-            QTextStream flux(&f2);
-
-            flux << QTime::currentTime().toString("hh:") + strMinute + "|" + QString::number(result.split("=").last().toDouble() / 1000) << endl;
-            f.close();
+            QSqlQuery req2;
+            req2.exec("SELECT MAX(ID) FROM Temperature");
+            req2.next();
+            int id = req.value(0).toInt()+1;
+            int r = static_cast<int>(result.split("=").last().toDouble() / 100);
+            double r2 = static_cast<double>(r);
+            req2.exec("INSERT INTO Temperature VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") +
+                     "','" + QTime::currentTime().toString("hh:") + strMinute + "','" + QString::number(emp) + "','" + QString::number(r2 / 10) + "')");
         }
     }
+}
 
+QString CVOrder::GetDataOrder(QDate first, QDate end)
+{
+    QSqlQuery req;
+    QString result;
+    req.exec("SELECT * FROM State WHERE Date BETWEEN '" + first.toString("yyyy-MM-dd") + "' AND '" + end.toString("yyyy-MM-dd") + "' ORDER BY Date ASC, Time ASC");
+    while(req.next())
+    {
+        result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "|" + req.value(4).toString() + "\r";
+    }
+    return result;
+}
+
+QString CVOrder::GetDataTemp(QDate first, QDate end)
+{
+    QSqlQuery req;
+    QString result;
+    req.exec("SELECT * FROM Temperature WHERE Date BETWEEN '" + first.toString("yyyy-MM-dd") + "' AND '" + end.toString("yyyy-MM-dd") + "' ORDER BY Date ASC, Time ASC");
+    while(req.next())
+    {
+        result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "|" + req.value(4).toString() + ",";
+    }
+    result = result.remove(result.count()-1,result.count()-1);
+    emit Info(className,result);
+    return result;
+}
+
+QString CVOrder::GetTemp(int emp)
+{
+    QSqlQuery req;
+    req.exec("SELECT * FROM CVOrder WHERE Name='Temp' AND Value1='" + QString::number(emp) + "'");
+    if(req.next()) {
+        QFile f("/sys/bus/w1/devices/" + req.value("Value2").toString() + "/w1_slave");
+        if(!f.open(QIODevice::ReadOnly)) {
+            emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
+        }
+        else {
+            req.exec("SELECT Value FROM Temperature WHERE Date='" + QDate::currentDate().toString("yyyy-MM-dd") + "' AND Pos='" + QString::number(emp) + "' ORDER BY Value DESC");
+            req.next();
+            QString max = req.value(0).toString();
+            req.last();
+            QString min = req.value(0).toString();
+
+            QString result = f.readAll();
+            int r = static_cast<int>(result.split("=").last().toDouble() / 100);
+            double r2 = static_cast<double>(r);
+            return QString(min + ":" + max + ":" + QString::number(r2 / 10));
+        }
+    }
+    return nullptr;
 }

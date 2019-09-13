@@ -10,6 +10,9 @@
 #include <QSslKey>
 #include <QSslError>
 
+//Dépot https://github.com/firedream89/CryptoFire
+#include <../../CryptoFire/src/cryptofire.h>
+
 //#define WEBSECURED
 
 enum Privilege
@@ -51,9 +54,6 @@ signals:
     void Info(QString classname, QString text);
 
 private:
-    QString Encrypt(QString text);
-    QString Decrypt(QString text);
-    void GeneratePKEY();
     void SecureWebSocket();
 
     QTcpServer *server;
@@ -67,7 +67,7 @@ private:
     quint16 dataSize;
     QString password;
     QString webPassword;
-    QString PKEY;
+    CryptoFire *crypto;
 };
 
 #endif // SERVER_H

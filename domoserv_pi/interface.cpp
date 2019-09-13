@@ -75,7 +75,7 @@ void Interface::StartUpdate()
 
 void Interface::Init()
 {
-    //Init Database
+    //Init Database Config
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(qApp->applicationDirPath() + "/bdd.db");
     db.setHostName("127.0.0.1");
@@ -103,7 +103,10 @@ void Interface::Init()
         int id = req.value(0).toInt()+1;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
+
     _linkLog = "/home/pi/domoserv_pi/data/domoserv_pi.log";
+    QDir dir;
+    dir.mkpath(_linkLog);
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
     if(req.value(0).toBool())
@@ -444,14 +447,36 @@ QString Interface::ReadData(QString data, int level)
                     else if(data.contains("GetLog")) {
                         return first + "GetLog=" + cvOrder->GetLog();
                     }
-                    else if(data.contains("GetDataCPTEnergy")) {
-                        QStringList date = data.split(";").last().split("-");
-                        if(date.count() != 3)
+                    else if(data.contains("GetDataCPTEnergy")  || data.contains("GetDataOrder") || data.contains("GetDataTemp")) {
+                        QStringList listDate = data.split(";").last().split(":");
+                        if(listDate.count() != 2)
+                            return QString("Error, bad format");
+                        QStringList date = listDate.first().split("-");
+                        QStringList endDate = listDate.last().split("-");
+                        if(date.count() != 3 || endDate.count() != 3)
+                            return QString("Error, bad format");
+                        emit ShowInfo(className,"GetDataInfo");
+                        QDate d(date.at(0).toInt(),date.at(1).toInt(),date.at(2).toInt());
+                        QDate f(endDate.at(0).toInt(),endDate.at(1).toInt(),endDate.at(2).toInt());
+
+                        if(data.contains("GetDataCPTEnergy")) {
+                            return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy(d,f);
+                        }
+                        else if(data.contains("GetDataOrder")) {
+                            return first + "GetDataOrder=" + cvOrder->GetDataOrder(d,f);
+                        }
+                        else {
+                            return first + "GetDataTemp=" + cvOrder->GetDataTemp(d,f);
+                        }
+                    }
+                    else if(data.contains("GetTemp")) {
+                        if(data.split(";").count() == 2) {
+                            int emp = data.split(";").last().toInt();
+                            return first + "GetTemp;" + QString::number(emp) + "=" + cvOrder->GetTemp(emp);
+                        }
+                        else {
                             return QString("Error");
-                        int day = date.at(0).toInt();
-                        int month = date.at(1).toInt();
-                        int year = date.at(2).toInt();
-                        return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy(day,month,year);
+                        }
                     }
                 }
             }

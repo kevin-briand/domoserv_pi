@@ -88,7 +88,6 @@ void Server::Stop()
     dataSize = 0;
     password.clear();
     webPassword.clear();
-    PKEY.clear();
 
     emit Info(className,"Closing server...");
     server->close();
@@ -151,11 +150,6 @@ void Server::Init()
     dataSize = 0;
 
     //Server Admin
-    //PKEY
-    GeneratePKEY();
-    emit Info(className,"PKEY generated : " + PKEY + "");
-
-
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='ActAdminServer'");
     req.next();
@@ -202,6 +196,11 @@ void Server::Init()
         emit Info(className,"[\033[0;31mFAILED\033[0m] starting server failed");
 
     emit Info(className,"------------------------------------------------------");
+
+    //CryptoFire
+    crypto = new CryptoFire;
+    crypto->Add_Encrypted_Key("Admin",password);
+    crypto->Add_Encrypted_Key("User",webPassword);
 }
 
 bool Server::StartServer()
@@ -216,12 +215,12 @@ bool Server::StartServer()
     if(req.value(0).toInt() == 0)
     {
         emit Info(className,"Server type : TCP");
-        return server->listen(QHostAddress::Any,port);
+        return server->listen(QHostAddress::Any,static_cast<quint16>(port));
     }
     else
     {
         emit Info(className,"Server type : Web Socket");
-        return webAdminServer->listen(QHostAddress::Any,port);
+        return webAdminServer->listen(QHostAddress::Any,static_cast<quint16>(port));
     }
 }
 
@@ -234,6 +233,8 @@ void Server::NewConnexion()
         connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
         connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
         emit Info(className,"New Admin connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+
+        SendToUser(newCo,crypto->Get_Key());
     }
     while(UserServer->hasPendingConnections())
     {
@@ -242,6 +243,8 @@ void Server::NewConnexion()
         connect(newCo,SIGNAL(readyRead()),this,SLOT(ReceiptData()));
         connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
         emit Info(className,"New User connected(" + newCo->peerAddress().toString().toLatin1() + ")");
+
+        SendToUser(newCo,crypto->Get_Key());
     }
 }
 
@@ -263,13 +266,21 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     quint16 empty(0);
     out << empty;
 
-    if(data == PKEY)
-        out << data;
-    else
-        out << Encrypt(data);
+    if(data.isEmpty())
+        out << crypto->Get_Key();
+    else {
+        if(usersList.contains(user)) {
+            crypto->Encrypt_Data(data,"User");
+            out << data;
+        }
+        else {
+            crypto->Encrypt_Data(data,"Admin");
+            out << data;
+        }
+    }
 
     out.device()->seek(0);
-    out << (quint16) (paquet.size() - sizeof(quint16));
+    out << static_cast<quint16>(static_cast<uint>(paquet.size()) - sizeof(quint16));
 
     //quint64* sizePaquet = reinterpret_cast<quint16*>(paquet.size());
      //sizePaquet -= sizeof(quint16);
@@ -292,7 +303,7 @@ void Server::ReceiptData()
 
         if(dataSize == 0)
         {
-            if(socket->bytesAvailable() < (uint)sizeof(quint16))
+            if(socket->bytesAvailable() < static_cast<uint>(sizeof(quint16)))
                  return;
             in >> dataSize;
         }
@@ -312,7 +323,14 @@ void Server::ReceiptData()
             int privilege = User;
             if(adminList.contains(socket))
                 privilege = Admin;
-            emit Receipt(socket,Decrypt(data),privilege);
+            if(privilege == User) {
+                crypto->Decrypt_Data(data,"User");
+                emit Receipt(socket,data,privilege);
+            }
+            else {
+                crypto->Decrypt_Data(data,"Admin");
+                emit Receipt(socket,data,privilege);
+            }
         }
 
         dataSize = 0;
@@ -324,11 +342,19 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     //ADMIN
     if(socket->parent() == server)
     {
-        if(data == password)
+        crypto->Decrypt_Data(data,"Admin");
+        if(data.contains("OK"))
         {
-            adminList.append(socket);
-            SendToUser(socket,PKEY);
-            emit Info(className,"New admin accepted");
+            if(data.split(" ").count() == 2) {
+                socket->setObjectName(data.split(" ").last());
+                adminList.append(socket);
+                emit Info(className,"New admin accepted");
+            }
+            else {
+                socket->close();
+                emit Info(className,"New admin refused");
+            }
+
         }
         else
         {
@@ -340,11 +366,18 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     //USER
     if(socket->parent() == UserServer)
     {
-        if(data == webPassword)
+        crypto->Decrypt_Data(data,"User");
+        if(data.contains("OK"))
         {
-            usersList.append(socket);
-            SendToUser(socket,PKEY);
-            emit Info(className,"New user accepted");
+            if(data.split(" ").count() == 2) {
+                socket->setObjectName(data.split(" ").last());
+                usersList.append(socket);
+                emit Info(className,"New user accepted");
+            }
+            else {
+                socket->close();
+                emit Info(className,"New user refused");
+            }
         }
         else
         {
@@ -369,12 +402,12 @@ bool Server::StartWebServer()
     if(req.value(0).toInt() == 1)
     {
         emit Info(className,"Server type : Web Socket");
-        return webServer->listen(QHostAddress::Any,port); 
+        return webServer->listen(QHostAddress::Any,static_cast<quint16>(port));
     }
     else
     {
         emit Info(className,"Server type : TCP");
-        return UserServer->listen(QHostAddress::Any,port);
+        return UserServer->listen(QHostAddress::Any,static_cast<quint16>(port));
     }
 }
 
@@ -419,6 +452,8 @@ void Server::NewWebConnexion()
         connect(socket,&QWebSocket::textMessageReceived,this,&Server::ReceiptMessage);
         connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
         emit Info(className,"New Web user connected(" + socket->peerAddress().toString() + ")");
+
+        SendToWebUser(socket,crypto->Get_Key());
     }
     while(webAdminServer->hasPendingConnections())
     {
@@ -428,6 +463,8 @@ void Server::NewWebConnexion()
         connect(socket,&QWebSocket::disconnected,this,&Server::WebDisconnect);
 
         emit Info(className,"New Web Admin connected(" + socket->peerAddress().toString() + ")");
+
+        SendToWebUser(socket,crypto->Get_Key());
     }
 }
 
@@ -448,19 +485,27 @@ void Server::ReceiptMessage(QString text)
         //ADMIN
         if(socket->parent() == webAdminServer)
         {
+            crypto->Decrypt_Data(text,"Admin");
             if(webAdminList.contains(socket))
             {
                 #ifdef WEBSECURED
                     emit WebReceipt(socket,text,Admin);
                 #else
-                    emit WebReceipt(socket,Decrypt(text),Admin);
+                    emit WebReceipt(socket,text,Admin);
                 #endif
             }
-            else if(text == password)
+            else if(text.contains("OK"))
             {
-                webAdminList.append(socket);
-                socket->sendTextMessage(PKEY);
-                emit Info(className,"New web admin accepted");
+                if(text.split(" ").count() == 2) {
+                    socket->setObjectName(text.split(" ").last());
+                    webAdminList.append(socket);
+                    emit Info(className,"New web admin accepted");
+                }
+                else {
+                    socket->close();
+                    emit Info(className,"New web admin refused");
+                }
+
             }
             else
             {
@@ -472,19 +517,27 @@ void Server::ReceiptMessage(QString text)
         //USER
         if(socket->parent() == webServer)
         {
+            crypto->Decrypt_Data(text,"User");
             if(webUsersList.contains(socket))
             {
                 #ifdef WEBSECURED
                     emit WebReceipt(socket,text, User);
                 #else
-                    emit WebReceipt(socket,Decrypt(text),User);
+                    emit WebReceipt(socket,text,User);
                 #endif
             }
-            else if(text == webPassword)
+            else if(text.contains("OK"))
             {
-                webUsersList.append(socket);
-                socket->sendTextMessage(PKEY);
-                emit Info(className,"New web user accepted");
+                if(text.split(" ").count() == 2) {
+                    socket->setObjectName(text.split(" ").last());
+                    webUsersList.append(socket);
+                    emit Info(className,"New web user accepted");
+                }
+                else {
+                    socket->close();
+                    emit Info(className,"New web user refused");
+                }
+
             }
             else
             {
@@ -503,90 +556,13 @@ void Server::SendToWebUser(QWebSocket *socket, QString data)
         #ifdef WEBSECURED
             socket->sendTextMessage(data);
         #else
-            socket->sendTextMessage(Encrypt(data));
+        if(webUsersList.contains(socket)) {
+            crypto->Encrypt_Data(data,"User");
+            socket->sendTextMessage(data);
+        }
+        else {
+            socket->sendTextMessage(data);
+        }
         #endif
     }
-}
-
-void Server::GeneratePKEY()
-{
-    srand(QTime::currentTime().msec());
-    QString key;
-
-    for(int i = 0;i<50;i++)
-    {
-        key.append(QString::number(rand() % 250) + " ");
-    }
-    key.remove(key.count()-1,key.count()-1);
-    PKEY = key;
-}
-
-QString Server::Encrypt(QString text)
-{
-    QString crypt;
-    QStringList k = PKEY.split(" ");
-    int idk(0);
-    for(int i = 0;i<text.count();i++)
-    {
-        if(idk == k.count())
-        {
-            idk = 0;
-        }
-        int t = text.at(i).unicode();
-        t -= k.at(idk).toInt();
-        if(t > 250)
-        {
-            t = t - 250;
-        }
-        else if(t < 0)
-        {
-            t = t + 250;
-        }
-        if(t == 34)//si '
-        {
-            t = 251;
-        }
-        else if(t == 39)//ou "
-        {
-            t = 252;
-        }
-        crypt += QChar(t).toLatin1();
-        idk++;
-    }
-    return crypt;
-}
-
-QString Server::Decrypt(QString text)
-{
-    QString decrypt;
-    QStringList k = PKEY.split(" ");
-    int idk(0);
-    for(int i = 0;i<text.count();i++)
-    {
-        if(idk == k.count())
-        {
-            idk = 0;
-        }
-        int t = text.at(i).unicode();
-        if(t == 251)//retour a '
-        {
-            t = 34;
-        }
-        else if(t == 252)//retour a "
-        {
-            t = 39;
-        }
-        t += k.at(idk).toInt();
-        if(t < 0)
-        {
-            t = t + 250;
-        }
-        else if(t > 250)
-        {
-            t = t - 250;
-        }
-        decrypt += QChar(t).toLatin1();
-        idk++;
-    }
-    return decrypt;
 }

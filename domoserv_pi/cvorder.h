@@ -6,6 +6,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QProcess>
+#include <QtDBus/QtDBus>
 
 #ifndef Q_OS_WIN
     #include </home/kevin/raspi/sysroot/usr/include/wiringPi/wiringPi.h>
@@ -81,8 +82,11 @@ public:
     void UseHCCPTEnergy(bool value);
     void UseCPTEnergy(bool value);
     void StopCPTEnergy();
-    QString GetDataCPTEnergy(int day, int month, int year);
+    QString GetDataCPTEnergy(QDate first, QDate end);
     void InitTemp();
+    QString GetDataOrder(QDate first, QDate end);
+    QString GetDataTemp(QDate first, QDate end);
+    QString GetTemp(int emp);
 
 public slots:
     void Reload();
@@ -103,6 +107,7 @@ private:
     void SetOutputState(int digitalIO,int state);
     void ChangeOrder(int order, int zone);
     void InitCPTEnergy();
+    bool ReadNetwork();
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
     int _lastStateZ1 = 0;
@@ -130,6 +135,7 @@ private:
     QTimer *_timerReadInput;
     QTimer _timerReadTemp;
     QString _pathTemp;
+    QSqlDatabase dbData;
 };
 
 #endif // CVORDER_H
