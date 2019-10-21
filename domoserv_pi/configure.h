@@ -12,6 +12,7 @@
 #include <QWebSocket>
 #include <cvorder.h>
 #include <wiringPi/wiringPi.h>
+#include <../../CryptoFire/src/cryptofire.h>
 
 #define GREEN "\033[0;32m"
 #define RED "\033[0;31m"
@@ -31,9 +32,6 @@ signals:
 public slots:
     
 private:
-    QString Encrypt(QString text);
-    QString Decrypt(QString text);
-    QString PKEY;
     QTcpSocket *socket;
     QWebSocket webSocket;
     quint16 dataSize;
@@ -44,13 +42,12 @@ private:
     void ConfigCVOrderMenu();
     void ConfigServerMenu();
     void ConfigGeneralMenu();
+    void ProgMenu();
     void Test();
     void SondeTempMenu();
+    int DaytoInt(QString day);
+    QString DaytoString(int day);
 
-private slots:
-    void Receipt_Data();
-    void Receipt_Message(QString text);
-    void Send_Data(QString data = nullptr);
 };
 
 #endif // CONFIGURE_H

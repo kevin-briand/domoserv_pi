@@ -150,11 +150,6 @@ void Configure::Test()
     GeneralMenu();
 }
 
-void Configure::Receipt_Message(QString text)
-{
-    _dataResult = text;
-}
-
 void Configure::StateMenu()
 {
     QSqlQuery req;
@@ -200,10 +195,9 @@ void Configure::StateMenu()
     {
         socket = new QTcpSocket;
         connect(socket,SIGNAL(readyRead()),this,SLOT(Receipt_Data()));
-        connect(socket,SIGNAL(connected()),this,SLOT(Send_Data()));
         req.exec("SELECT * FROM General WHERE Name='Port'");
         req.next();
-        socket->connectToHost("127.0.0.1",req.value("Value1").toInt());
+        socket->connectToHost("127.0.0.1",static_cast<quint16>(req.value("Value1").toInt()));
         if(socket->waitForConnected())
             cout << "Status : " << GREEN << " En Service " << NOCOLOR << endl;
         else
@@ -252,10 +246,9 @@ void Configure::StateMenu()
     {
         socket = new QTcpSocket;
         connect(socket,SIGNAL(readyRead()),this,SLOT(Receipt_Data()));
-        connect(socket,SIGNAL(connected()),this,SLOT(Send_Data()));
         req.exec("SELECT * FROM General WHERE Name='WebPort'");
         req.next();
-        socket->connectToHost("127.0.0.1",req.value("Value1").toInt());
+        socket->connectToHost("127.0.0.1",static_cast<quint16>(req.value("Value1").toInt()));
         if(socket->waitForConnected())
             cout << "Status : \033[0;32m En Service \033[0m" << endl << endl;
         else
@@ -398,11 +391,13 @@ void Configure::ConfigCVOrderMenu()
     req.next();
     cout << "11 - Emplacement dossier contenant les fichiers data compteur : " << req.value("Value1").toString().toStdString() << endl;
 
-    cout << "12 - Retour" << endl;
+    cout << "12 - Réglage horloge" << endl;
+
+    cout << "13 - Retour" << endl;
 
     int result = 0;
 
-    while(result < 1 || result > 12)
+    while(result < 1 || result > 13)
     {
         cout << "Choix : ";
         cin >> result;
@@ -506,7 +501,232 @@ void Configure::ConfigCVOrderMenu()
         ConfigCVOrderMenu();
         break;
     case 12:
+        ProgMenu();
+        break;
+    case 13:
         ConfigMenu();
+    }
+}
+
+void Configure::ProgMenu()
+{
+    QSqlQuery req;
+    cout << "Liste des horaires programmés :" << endl;
+    req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
+    while(req.next()) {
+        if(req.value("Value3").toInt() == eco)
+            cout << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Eco" << endl;
+        else if(req.value("Value3").toInt() == confort)
+            cout << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Confort" << endl;
+    }
+    cout << "--------------------" << endl;
+
+    cout << "1 - Nouvelle programmation" << endl;
+    cout << "2 - Supprimer programmation" << endl;
+    cout << "3 - Retour" << endl;
+
+    int result = 0;
+    while(result < 1 || result > 3)
+    {
+        cout << "Choix : ";
+        cin >> result;
+        cout << endl;
+    }
+
+
+    if(result == 1) {
+        //Heure
+        QString hour;
+        int h = -1;
+        int mn = -1;
+        while((h < 0 || h > 24) && (mn < 0 || mn > 59)) {
+            cout << "Indiquez une heure(format xx:xx) :" << endl;
+            string r;
+            cin >> r;
+            hour = QString::fromStdString(r);
+            h = hour.split(":").first().toInt();
+            mn = hour.split(":").last().toInt();
+        }
+
+        //Jour
+        int r = 0;
+        QStringList day;
+        while(r != 8) {
+            cout << "Selectionner le(s) jour(s) :" << endl;
+            if(!day.contains("1"))
+                cout << "1 - Lundi" << endl;
+            if(!day.contains("2"))
+                cout << "2 - Mardi" << endl;
+            if(!day.contains("3"))
+                cout << "3 - Mercredi" << endl;
+            if(!day.contains("4"))
+                cout << "4 - Jeudi" << endl;
+            if(!day.contains("5"))
+                cout << "5 - Vendredi" << endl;
+            if(!day.contains("6"))
+                cout << "6 - Samedi" << endl;
+            if(!day.contains("7"))
+                cout << "7 - Dimanche" << endl;
+            cout << "8 - Suivant" << endl;
+            cout << "Choix : ";
+            cin >> r;
+            cout << endl;
+
+            if(r > 0 && r < 8) {
+                day.append(QString::number(r));
+            }
+        }
+
+        //Zone
+        r = 0;
+        int zone = -1;
+        while(r != 1 && r != 2) {
+            cout << "Selectionner la zone :" << endl;
+            cout << "1 - Zone 1" << endl;
+            cout << "2 - Zone 2" << endl;
+            cout << "Choix : ";
+            cin >> r;
+            cout << endl;
+        }
+        if(r == 1)
+            zone = Z1;
+        else
+            zone = Z2;
+
+        //Etat
+        r = 0;
+        int state = -1;
+        while(r != 1 && r != 2) {
+            cout << "Selectionner l'état :" << endl;
+            cout << "1 - Confort" << endl;
+            cout << "2 - Eco" << endl;
+            cout << "Choix : ";
+            cin >> r;
+            cout << endl;
+        }
+        if(r == 1)
+            state = confort;
+        else
+            state = eco;
+
+        //Resumé
+        cout << "Les horaires suivantes seront ajouté à la base de données :" << endl;
+        for(int i=0;i<day.count();i++) {
+            cout << DaytoString(day.at(i).toInt()).toStdString() << " " << hour.toStdString();
+            if(zone == Z1)
+                cout << " Z1";
+            else
+                cout << " Z2";
+            if(state == confort)
+                cout << " Confort";
+            else
+                cout << " Eco";
+            cout << endl;
+        }
+        cout << "Enregistrer ?" << endl;
+
+        r = 0;
+        while(r != 1 && r != 2) {
+            cout << "1 - Oui" << endl;
+            cout << "2 - Non" << endl;
+            cin >> r;
+        }
+        if(r == 1) {
+            req.exec("SELECT MAX(ID) FROM CVOrder");
+            req.next();
+
+            int id = req.value(0).toInt();
+            for(int i=0;i<day.count();i++) {
+                QDate date;
+                date.setDate(2018,01,day.at(i).toInt());
+                //---if exist
+                req.exec("SELECT * FROM CVOrder WHERE Name='Prog' AND Value1='" + date.toString("yyyy-MM-dd") + "' AND Value2='" + QString::number(zone) + "'");
+                if(req.next())
+                    continue;
+                //---
+                id++;
+                req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date.toString("yyyy-MM-dd") + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
+            }
+        }
+        ProgMenu();
+
+    }
+    else if(result == 2) {
+        int value = 1;
+        QList<int> list;
+        req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
+        while(req.next()) {
+            list.append(req.value(0).toInt());
+            if(req.value("Value3").toInt() == eco)
+                cout << value << " - " << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Eco" << endl;
+            else if(req.value("Value3").toInt() == confort)
+                cout << value << " - " << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Confort" << endl;
+            value++;
+        }
+        value = 0;
+        while(value < 1 && value > list.count()) {
+        cout << "Choix : ";
+        cin >> value;
+        cout << endl;
+        }
+        req.seek(value-1);
+        if(req.value("Value3").toInt() == eco)
+            cout << value << " - " << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Eco" << endl;
+        else if(req.value("Value3").toInt() == confort)
+            cout << value << " - " << req.value("Value1").toString().toStdString() << " Z" << req.value("Value2").toString().toStdString() << " : Confort" << endl;
+        cout << "Supprimer ?" << endl;
+        int v = 0;
+        cout << "1 - Oui" << endl;
+        cout << "2 - Non" << endl;
+        cin >> v;
+        cout << endl;
+        if(v == 1) {
+            req.exec("DELETE FROM CVOrder WHERE Name='Prog' AND ID='" + QString::number(list.at(value-1)) + "'");
+        }
+        ProgMenu();
+    }
+    else {
+        ConfigCVOrderMenu();
+    }
+}
+
+int Configure::DaytoInt(QString day)
+{
+    if(day == "Lundi")
+        return 1;
+    else if(day == "Mardi")
+        return 2;
+    else if(day == "Mercredi")
+        return 3;
+    else if(day == "Jeudi")
+        return 4;
+    else if(day == "Vendredi")
+        return 5;
+    else if(day == "Samedi")
+        return 6;
+    else if(day == "Dimanche")
+        return 7;
+}
+
+QString Configure::DaytoString(int day)
+{
+    switch (day) {
+    case 1:
+        return "Lundi";
+    case 2:
+        return "Mardi";
+    case 3:
+        return "Mercredi";
+    case 4:
+        return "Jeudi";
+    case 5:
+        return "Vendredi";
+    case 6:
+        return "Samedi";
+    case 7:
+        return "Dimanche";
+    default:
+        return "";
     }
 }
 
@@ -798,128 +1018,4 @@ void Configure::ConfigServerMenu()
     case 8:
         ConfigMenu();
     }
-}
-
-void Configure::Send_Data(QString data)
-{
-    if(data.isEmpty())
-    {
-        QSqlQuery req;
-        req.exec("SELECT * FROM General WHERE Name='Password'");
-        req.next();
-        data = req.value("Value1").toString();
-    }
-    QByteArray paquet;
-
-    QDataStream out(&paquet, QIODevice::WriteOnly);
-
-    out << (quint16) 0;
-    out << Encrypt(data);
-    out.device()->seek(0);
-    out << (quint16) (paquet.size() - sizeof(quint16));
-
-    socket->write(paquet);
-}
-
-void Configure::Receipt_Data()
-{
-    if (socket == nullptr)
-        return;
-
-    QDataStream in(socket);
-
-    if(dataSize == 0)
-    {
-        if(socket->bytesAvailable() < (int)sizeof(quint16))
-             return;
-        in >> dataSize;
-    }
-
-    if(socket->bytesAvailable() < dataSize)
-        return;
-
-    QString data;
-    in >> data;
-
-    if(PKEY.isEmpty())
-    {
-        PKEY = data;
-        qDebug() << "PKEY : " + PKEY;
-    }
-    else
-    {
-        _dataResult = Decrypt(data);
-    }
-
-    dataSize = 0;
-}
-
-QString Configure::Encrypt(QString text)
-{
-    QString crypt;
-    QStringList k = PKEY.split(" ");
-    int idk(0);
-    for(int i = 0;i<text.count();i++)
-    {
-        if(idk == k.count())
-        {
-            idk = 0;
-        }
-        int t = text.at(i).unicode();
-        t -= k.at(idk).toInt();
-        if(t > 250)
-        {
-            t = t - 250;
-        }
-        else if(t < 0)
-        {
-            t = t + 250;
-        }
-        if(t == 34)//si '
-        {
-            t = 251;
-        }
-        else if(t == 39)//ou "
-        {
-            t = 252;
-        }
-        crypt += QChar(t).toLatin1();
-        idk++;
-    }
-    return crypt;
-}
-
-QString Configure::Decrypt(QString text)
-{
-    QString decrypt;
-    QStringList k = PKEY.split(" ");
-    int idk(0);
-    for(int i = 0;i<text.count();i++)
-    {
-        if(idk == k.count())
-        {
-            idk = 0;
-        }
-        int t = text.at(i).unicode();
-        if(t == 251)//retour a '
-        {
-            t = 34;
-        }
-        else if(t == 252)//retour a "
-        {
-            t = 39;
-        }
-        t += k.at(idk).toInt();
-        if(t < 0)
-        {
-            t = t + 250;
-        }
-        else if(t > 250)
-        {
-            t = t - 250;
-        }
-        decrypt += QChar(t).toLatin1();
-        idk++;
-    }
-    return decrypt;
 }

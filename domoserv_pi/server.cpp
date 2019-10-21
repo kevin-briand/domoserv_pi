@@ -282,11 +282,7 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     out.device()->seek(0);
     out << static_cast<quint16>(static_cast<uint>(paquet.size()) - sizeof(quint16));
 
-    //quint64* sizePaquet = reinterpret_cast<quint16*>(paquet.size());
-     //sizePaquet -= sizeof(quint16);
-     //out << sizePaquet;
-
-     user->write(paquet);
+    user->write(paquet);
 }
 
 void Server::ReceiptData()
