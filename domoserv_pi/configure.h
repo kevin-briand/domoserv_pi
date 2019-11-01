@@ -43,6 +43,7 @@ private:
     void ConfigServerMenu();
     void ConfigGeneralMenu();
     void ProgMenu();
+    void IpMenu();
     void Test();
     void SondeTempMenu();
     int DaytoInt(QString day);

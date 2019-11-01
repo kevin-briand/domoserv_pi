@@ -393,11 +393,13 @@ void Configure::ConfigCVOrderMenu()
 
     cout << "12 - Réglage horloge" << endl;
 
-    cout << "13 - Retour" << endl;
+    cout << "13 - Ajout/Suppression Ip" << endl;
+
+    cout << "14 - Retour" << endl;
 
     int result = 0;
 
-    while(result < 1 || result > 13)
+    while(result < 1 || result > 14)
     {
         cout << "Choix : ";
         cin >> result;
@@ -504,7 +506,94 @@ void Configure::ConfigCVOrderMenu()
         ProgMenu();
         break;
     case 13:
+        IpMenu();
+        break;
+    case 14:
         ConfigMenu();
+    }
+}
+
+void Configure::IpMenu()
+{
+    cout << "Ip Actuellement contrôlées :" << endl;
+
+    QSqlQuery req;
+    req.exec("SELECT * FROM CVOrder WHERE Name='IpPing'");
+    while(req.next()) {
+        cout << req.value("Value1").toString().toStdString() << endl;
+    }
+    cout << endl;
+
+    cout << "1 - Ajouter" << endl;
+    cout << "2 - Supprimer" << endl;
+    cout << "3 - Retour" << endl;
+
+    int result = 0;
+    while(result < 1 || result > 3) {
+        cout << "Choix : ";
+        cin >> result;
+    }
+    cout << endl;
+
+    if(result == 1) {
+        cout << "Saisissez une ip : ";
+        string sip;
+        cin >> sip;
+        cout << endl;
+        QString ip = QString::fromStdString(sip);
+
+        //Add
+        if(ip.split(".").count() == 4)
+        {
+            unsigned int sIp1 = ip.split(".").at(0).toUInt();
+            unsigned int sIp2 = ip.split(".").at(1).toUInt();
+            unsigned int sIp3 = ip.split(".").at(2).toUInt();
+            unsigned int sIp4 = ip.split(".").at(3).toUInt();
+            if(sIp1 <= 255 && sIp2 <= 255 && sIp3 <= 255 && sIp4 <= 255)
+            {
+                QSqlQuery req;
+                req.exec("SELECT * FROM CVOrder WHERE Name='IpPing' AND Value1='" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
+                         QString::number(sIp3) + "." + QString::number(sIp4) + "'");
+                if(req.next())
+                    cout << "Ip already exist" << endl;
+                else
+                {
+                    req.exec("SELECT MAX(ID) FROM CVOrder");
+                    req.next();
+                    int id = req.value(0).toInt()+1;
+                    req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','IpPing','" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
+                             QString::number(sIp3) + "." + QString::number(sIp4) + "','','','')");
+                    cout << ip.toStdString() + " ajouté" << endl;
+                }
+            }
+        }
+        IpMenu();
+    }
+    else if(result == 2) {
+        QSqlQuery req;
+        req.exec("SELECT * FROM CVOrder WHERE Name='IpPing'");
+        QStringList list;
+        int r = 1;
+        while(req.next()) {
+            cout << r << " - " << req.value("Value1").toString().toStdString() << endl;
+            r++;
+            list.append(req.value(0).toString());
+        }
+        cout << r << " - " << "Retour" << endl;
+
+        int result = 0;
+        while(result < 1 || result > r) {
+            cin >> result;
+        }
+        if(result == r) {
+            IpMenu();
+            return;
+        }
+        req.exec("DELETE FROM CVOrder WHERE Name='IpPing' AND ID='" + list.at(result-1) + "'");
+        IpMenu();
+    }
+    else {
+        ConfigCVOrderMenu();
     }
 }
 
@@ -639,13 +728,15 @@ void Configure::ProgMenu()
             for(int i=0;i<day.count();i++) {
                 QDate date;
                 date.setDate(2018,01,day.at(i).toInt());
+                QTime time;
+                time.setHMS(h,mn,0);
                 //---if exist
-                req.exec("SELECT * FROM CVOrder WHERE Name='Prog' AND Value1='" + date.toString("yyyy-MM-dd") + "' AND Value2='" + QString::number(zone) + "'");
+                req.exec("SELECT * FROM CVOrder WHERE Name='Prog' AND Value1='" + date.toString("yyyy-MM-dd") + time.toString(" hh:mm") + "' AND Value2='" + QString::number(zone) + "'");
                 if(req.next())
                     continue;
                 //---
                 id++;
-                req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date.toString("yyyy-MM-dd") + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
+                req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date.toString("yyyy-MM-dd") + time.toString(" hh:mm") + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
             }
         }
         ProgMenu();
@@ -664,7 +755,7 @@ void Configure::ProgMenu()
             value++;
         }
         value = 0;
-        while(value < 1 && value > list.count()) {
+        while(value < 1 || value > list.count()) {
         cout << "Choix : ";
         cin >> value;
         cout << endl;

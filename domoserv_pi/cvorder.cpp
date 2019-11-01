@@ -438,7 +438,7 @@ void CVOrder::ChangeOrder(int order,int zone)
     req.exec("SELECT MAX(ID) FROM Order");
     req.next();
     int id = req.value(0).toInt()+1;
-    req.exec("INSERT INTO Order VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") + "','" +
+    req.exec("INSERT INTO State VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") + "','" +
              QTime::currentTime().toString("hh:mm") + "','" + QString::number(zone) + "','" + QString::number(order) + "')");
 
     //save state
@@ -962,6 +962,11 @@ void CVOrder::ABS(int day)
     {
         if(!_abs->isActive())
             return;
+        else {
+            _abs->stop();
+            Reload();
+            return;
+        }
     }
     else if(day < 1 || day > 30)
     {
@@ -1261,7 +1266,7 @@ void CVOrder::AddTempToFile()
             QSqlQuery req2;
             req2.exec("SELECT MAX(ID) FROM Temperature");
             req2.next();
-            int id = req.value(0).toInt()+1;
+            int id = req2.value(0).toInt()+1;
             int r = static_cast<int>(result.split("=").last().toDouble() / 100);
             double r2 = static_cast<double>(r);
             req2.exec("INSERT INTO Temperature VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") +
