@@ -12,12 +12,6 @@
 #include <QDesktopServices>
 #include <configure.h>
 
-//TEST
-#ifndef Q_OS_WIN
-    #include </home/kevin/raspi/sysroot/usr/include/wiringPi/wiringPiSPI.h>
-    //#define ACT_WIRING_PI_SPI
-#endif
-
 
 #define className "General"
 

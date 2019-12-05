@@ -11,7 +11,7 @@
 #include <QHostAddress>
 #include <QWebSocket>
 #include <cvorder.h>
-#include <wiringPi/wiringPi.h>
+#include <../../wiringPi/wiringPi/wiringPi.h>
 #include <../../CryptoFire/src/cryptofire.h>
 
 #define GREEN "\033[0;32m"

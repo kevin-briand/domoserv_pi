@@ -9,7 +9,7 @@
 #include <QtDBus/QtDBus>
 
 #ifndef Q_OS_WIN
-    #include </home/kevin/raspi/sysroot/usr/include/wiringPi/wiringPi.h>
+    #include <../../wiringPi/wiringPi/wiringPi.h>
     #define ACT_WIRING_PI
 #endif
 
