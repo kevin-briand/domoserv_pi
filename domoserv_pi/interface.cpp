@@ -105,8 +105,7 @@ void Interface::Init()
     }
 
     _linkLog = "/home/pi/domoserv_pi/data/domoserv_pi.log";
-    QDir dir;
-    dir.mkpath(_linkLog);
+
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
     if(req.value(0).toBool())
