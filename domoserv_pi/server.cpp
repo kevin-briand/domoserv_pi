@@ -43,6 +43,9 @@ Server::Server()
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','','','','')");
     }
+
+
+
 }
 /*
 Server::~Server()
@@ -147,6 +150,7 @@ void Server::Reload()
 void Server::Init()
 {
     emit Info(className,"Starting server");
+    emit Info(className,QString::number(sizeof (quint16)));
     dataSize = 0;
 
     //Server Admin
@@ -234,7 +238,7 @@ void Server::NewConnexion()
         connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
         emit Info(className,"New Admin connected(" + newCo->peerAddress().toString().toLatin1() + ")");
 
-        SendToUser(newCo,crypto->Get_Key());
+        SendToUser(newCo,"");
     }
     while(UserServer->hasPendingConnections())
     {
@@ -244,7 +248,7 @@ void Server::NewConnexion()
         connect(newCo,SIGNAL(disconnected()),this,SLOT(Disconnect()));
         emit Info(className,"New User connected(" + newCo->peerAddress().toString().toLatin1() + ")");
 
-        SendToUser(newCo,crypto->Get_Key());
+        SendToUser(newCo,"");
     }
 }
 
@@ -267,8 +271,9 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     out << empty;
 
     if(data.isEmpty())
-        out << crypto->Get_Key();
+        out << crypto->Get_Key() + "\r\n";
     else {
+        data += "\r\n";
         if(usersList.contains(user)) {
             crypto->Encrypt_Data(data,"User");
             out << data;
@@ -283,6 +288,7 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     out << static_cast<quint16>(static_cast<uint>(paquet.size()) - sizeof(quint16));
 
     user->write(paquet);
+    user->flush();
 }
 
 void Server::ReceiptData()
@@ -339,7 +345,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     if(socket->parent() == server)
     {
         crypto->Decrypt_Data(data,"Admin");
-        if(data.contains("OK"))
+        if(data.contains(QString::number(noError)))
         {
             if(data.split(" ").count() == 2) {
                 socket->setObjectName(data.split(" ").last());
@@ -347,6 +353,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
                 emit Info(className,"New admin accepted");
             }
             else {
+                SendToUser(socket,QString::number(passwordError));
                 socket->close();
                 emit Info(className,"New admin refused");
             }
@@ -354,6 +361,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         }
         else
         {
+            SendToUser(socket,QString::number(dataError));
             socket->close();
             emit Info(className,"New admin refused");
         }
@@ -363,7 +371,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     if(socket->parent() == UserServer)
     {
         crypto->Decrypt_Data(data,"User");
-        if(data.contains("OK"))
+        if(data.contains(QString::number(noError)))
         {
             if(data.split(" ").count() == 2) {
                 socket->setObjectName(data.split(" ").last());
@@ -371,12 +379,14 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
                 emit Info(className,"New user accepted");
             }
             else {
+                SendToUser(socket,QString::number(passwordError));
                 socket->close();
                 emit Info(className,"New user refused");
             }
         }
         else
         {
+            SendToUser(socket,QString::number(dataError));
             socket->close();
             emit Info(className,"New user refused");
         }
@@ -490,7 +500,7 @@ void Server::ReceiptMessage(QString text)
                     emit WebReceipt(socket,text,Admin);
                 #endif
             }
-            else if(text.contains("OK"))
+            else if(text.contains(QString::number(noError)))
             {
                 if(text.split(" ").count() == 2) {
                     socket->setObjectName(text.split(" ").last());
@@ -498,6 +508,7 @@ void Server::ReceiptMessage(QString text)
                     emit Info(className,"New web admin accepted");
                 }
                 else {
+                    SendToWebUser(socket,QString::number(passwordError));
                     socket->close();
                     emit Info(className,"New web admin refused");
                 }
@@ -505,6 +516,7 @@ void Server::ReceiptMessage(QString text)
             }
             else
             {
+                SendToWebUser(socket,QString::number(dataError));
                 socket->close();
                 emit Info(className,"New web admin refused");
             }
@@ -514,6 +526,7 @@ void Server::ReceiptMessage(QString text)
         if(socket->parent() == webServer)
         {
             crypto->Decrypt_Data(text,"User");
+            emit Info(className,text);
             if(webUsersList.contains(socket))
             {
                 #ifdef WEBSECURED
@@ -522,7 +535,7 @@ void Server::ReceiptMessage(QString text)
                     emit WebReceipt(socket,text,User);
                 #endif
             }
-            else if(text.contains("OK"))
+            else if(text.contains(QString::number(noError)))
             {
                 if(text.split(" ").count() == 2) {
                     socket->setObjectName(text.split(" ").last());
@@ -530,6 +543,7 @@ void Server::ReceiptMessage(QString text)
                     emit Info(className,"New web user accepted");
                 }
                 else {
+                    SendToWebUser(socket,QString::number(passwordError));
                     socket->close();
                     emit Info(className,"New web user refused");
                 }
@@ -537,6 +551,7 @@ void Server::ReceiptMessage(QString text)
             }
             else
             {
+                SendToWebUser(socket,QString::number(dataError));
                 socket->close();
                 emit Info(className,"New web user refused");
             }

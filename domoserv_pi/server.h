@@ -15,6 +15,13 @@
 
 //#define WEBSECURED
 
+enum NetworkError
+{
+    noError,
+    passwordError,
+    dataError
+};
+
 enum Privilege
 {
     Admin,
