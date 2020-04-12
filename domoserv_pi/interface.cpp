@@ -159,7 +159,7 @@ QString Interface::ReadData(QString data, int level)
         if(data.split("|").count() != 2)
         {
             ShowInfo(className,"Data corrupted !");
-            return QString("Error : Data corrupted");
+            return QString(dataError);
         }
         else
         {
@@ -482,7 +482,7 @@ QString Interface::ReadData(QString data, int level)
         }
         else {
             ShowInfo(className,"data corrupted");
-            return QString("Data corrupted");
+            return QString(dataError);
         }
     }
     else

@@ -271,10 +271,9 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     out << empty;
 
     if(data.isEmpty())
-        out << crypto->Get_Key() + "\r\n";
+        out << crypto->Get_Key();
     else {
-        data += "\r\n";
-        if(usersList.contains(user)) {
+        if(usersList.contains(user) && (data != QString::number(dataError) || data != QString::number(passwordError))) {
             crypto->Encrypt_Data(data,"User");
             out << data;
         }
@@ -349,11 +348,13 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         {
             if(data.split(" ").count() == 2) {
                 socket->setObjectName(data.split(" ").last());
+                SendToUser(socket, QString::number(noError));
                 adminList.append(socket);
                 emit Info(className,"New admin accepted");
             }
             else {
                 SendToUser(socket,QString::number(passwordError));
+                socket->flush();
                 socket->close();
                 emit Info(className,"New admin refused");
             }
@@ -362,6 +363,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         else
         {
             SendToUser(socket,QString::number(dataError));
+            socket->flush();
             socket->close();
             emit Info(className,"New admin refused");
         }
@@ -375,11 +377,13 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         {
             if(data.split(" ").count() == 2) {
                 socket->setObjectName(data.split(" ").last());
+                SendToUser(socket, QString::number(noError));
                 usersList.append(socket);
                 emit Info(className,"New user accepted");
             }
             else {
                 SendToUser(socket,QString::number(passwordError));
+                socket->flush();
                 socket->close();
                 emit Info(className,"New user refused");
             }
@@ -387,6 +391,7 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
         else
         {
             SendToUser(socket,QString::number(dataError));
+            socket->flush();
             socket->close();
             emit Info(className,"New user refused");
         }
@@ -504,11 +509,13 @@ void Server::ReceiptMessage(QString text)
             {
                 if(text.split(" ").count() == 2) {
                     socket->setObjectName(text.split(" ").last());
+                    SendToWebUser(socket, QString::number(noError));
                     webAdminList.append(socket);
                     emit Info(className,"New web admin accepted");
                 }
                 else {
                     SendToWebUser(socket,QString::number(passwordError));
+                    socket->flush();
                     socket->close();
                     emit Info(className,"New web admin refused");
                 }
@@ -517,6 +524,7 @@ void Server::ReceiptMessage(QString text)
             else
             {
                 SendToWebUser(socket,QString::number(dataError));
+                socket->flush();
                 socket->close();
                 emit Info(className,"New web admin refused");
             }
@@ -539,11 +547,13 @@ void Server::ReceiptMessage(QString text)
             {
                 if(text.split(" ").count() == 2) {
                     socket->setObjectName(text.split(" ").last());
+                    SendToWebUser(socket, QString::number(noError));
                     webUsersList.append(socket);
                     emit Info(className,"New web user accepted");
                 }
                 else {
                     SendToWebUser(socket,QString::number(passwordError));
+                    socket->flush();
                     socket->close();
                     emit Info(className,"New web user refused");
                 }
@@ -552,6 +562,7 @@ void Server::ReceiptMessage(QString text)
             else
             {
                 SendToWebUser(socket,QString::number(dataError));
+                socket->flush();
                 socket->close();
                 emit Info(className,"New web user refused");
             }
@@ -567,7 +578,7 @@ void Server::SendToWebUser(QWebSocket *socket, QString data)
         #ifdef WEBSECURED
             socket->sendTextMessage(data);
         #else
-        if(webUsersList.contains(socket)) {
+        if(webUsersList.contains(socket) && (data != QString::number(dataError) || data != QString::number(passwordError))) {
             crypto->Encrypt_Data(data,"User");
             socket->sendTextMessage(data);
         }
