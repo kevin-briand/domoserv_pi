@@ -10,15 +10,10 @@ Server::Server()
     connect(server,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
     UserServer = new QTcpServer;
     connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
-#ifdef WEBSECURED
-    qDebug()<<"SSL version use for build: "<<QSslSocket::sslLibraryBuildVersionString();
-    qDebug()<<"SSL version use for run-time: "<<QSslSocket::sslLibraryVersionNumber();
-    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
-    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::SecureMode);
-#else
+
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
     webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
-#endif
+
     connect(webServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
     connect(webAdminServer,SIGNAL(newConnection()),this,SLOT(NewWebConnexion()));
 
@@ -47,7 +42,7 @@ Server::Server()
 
 
 }
-/*
+
 Server::~Server()
 {
     Stop();
@@ -56,37 +51,22 @@ Server::~Server()
     UserServer->deleteLater();
     webAdminServer->deleteLater();
     webServer->deleteLater();
-}*/
+}
 
 void Server::Stop()
 {
     //TCP SERVER
-    for(int i=0;i<adminList.count();i++)
-    {
-        emit Info(className,"Forced disconnect admin");
-        adminList.at(i)->disconnectFromHost();
-    }
-    adminList.clear();
+    emit Info(className,"Forced disconnect admin");
+    DisconnectUsers(adminList);
     //WEB SERVER
-    for(int i=0;i<webAdminList.count();i++)
-    {
-        emit Info(className,"Forced disconnect web admin");
-        webAdminList.at(i)->close();
-    }
-    webAdminList.clear();
+    emit Info(className,"Forced disconnect web admin");
+    DisconnectUsers(webAdminList);
     //TCP SERVER USER
-    for(int i=0;i<usersList.count();i++)
-    {
-        emit Info(className,"Forced disconnect admin");
-        usersList.at(i)->disconnectFromHost();
-    }
-    usersList.clear();
+    emit Info(className,"Forced disconnect admin");
+    DisconnectUsers(usersList);
     //WEB SERVER USER
-    for (int i=0;i<webUsersList.count();i++) {
-        emit Info(className,"Forced disconnect web user");
-        webUsersList.at(i)->close();
-    }
-    webUsersList.clear();
+    emit Info(className,"Forced disconnect web user");
+    DisconnectUsers(webUsersList);
     //VARIABLES
     dataSize = 0;
     password.clear();
@@ -126,6 +106,21 @@ void Server::Stop()
         emit Info(className,"[\033[0;31mFAILED\033[0m] Server not closed");
 }
 
+template <class T>
+void Server::DisconnectUsers(QList<T> list)
+{
+    for(int i=0;i<list.count();i++)
+    {
+        if(typeid(list.at(i)) == typeid(QTcpSocket) || typeid(list.at(i) )== typeid(QWebSocket)) {
+            list.at(i)->close();
+        }
+        else {
+            throw;
+        }
+    }
+    list.clear();
+}
+
 void Server::Reload()
 {
     Stop();
@@ -136,13 +131,8 @@ void Server::Reload()
     UserServer = new QTcpServer;
     connect(UserServer,SIGNAL(newConnection()),this,SLOT(NewConnexion()));
 
-#ifdef WEBSECURED
-    webServer = new QWebSocketServer("webServer",QWebSocketServer::SecureMode);
-    webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::SecureMode);
-#else
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
     webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
-#endif
 
     Init();
 }
@@ -157,7 +147,7 @@ void Server::Init()
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='ActAdminServer'");
     req.next();
-    if(req.value(0).toInt() == 1) {
+    if(req.value(0).toBool()) {
         //Password
         emit Info(className,"------------------Server Admin Info-------------------");
         req.exec("SELECT Value1 FROM General WHERE Name='Password'");
@@ -216,7 +206,7 @@ bool Server::StartServer()
 
     req.exec("SELECT Value1 FROM General WHERE Name='WebAdminSocket'");
     req.next();
-    if(req.value(0).toInt() == 0)
+    if(!req.value(0).toBool())
     {
         emit Info(className,"Server type : TCP");
         return server->listen(QHostAddress::Any,static_cast<quint16>(port));
@@ -340,69 +330,38 @@ void Server::ReceiptData()
 
 void Server::AddUserToList(QTcpSocket *socket, QString data)
 {
-    //ADMIN
-    if(socket->parent() == server)
-    {
-        crypto->Decrypt_Data(data,"Admin");
-        if(data.contains(QString::number(noError)))
-        {
-            if(data.split(" ").count() == 2) {
-                socket->setObjectName(data.split(" ").last());
-                SendToUser(socket, QString::number(noError));
-                adminList.append(socket);
-                emit Info(className,"New admin accepted");
-            }
-            else {
-                SendToUser(socket,QString::number(passwordError));
-                socket->flush();
-                socket->close();
-                emit Info(className,"New admin refused");
-            }
-
-        }
-        else
-        {
-            SendToUser(socket,QString::number(dataError));
-            socket->flush();
-            socket->close();
-            emit Info(className,"New admin refused");
-        }
+    QString nameList = "User";
+    QList<QTcpSocket*> list = usersList;
+    if(socket->parent() == server) {
+        nameList = "Admin";
+        list = adminList;
     }
 
-    //USER
-    if(socket->parent() == UserServer)
+    crypto->Decrypt_Data(data,nameList);
+    if(data.contains(QString::number(noError)))
     {
-        crypto->Decrypt_Data(data,"User");
-        if(data.contains(QString::number(noError)))
-        {
-            if(data.split(" ").count() == 2) {
-                socket->setObjectName(data.split(" ").last());
-                SendToUser(socket, QString::number(noError));
-                usersList.append(socket);
-                emit Info(className,"New user accepted");
-            }
-            else {
-                SendToUser(socket,QString::number(passwordError));
-                socket->flush();
-                socket->close();
-                emit Info(className,"New user refused");
-            }
+        if(data.split(" ").count() == 2) {
+            socket->setObjectName(data.split(" ").last());
+            SendToUser(socket, QString::number(noError));
+            list.append(socket);
+            emit Info(className,"New " + nameList + " accepted");
         }
-        else
-        {
-            SendToUser(socket,QString::number(dataError));
-            socket->flush();
-            socket->close();
-            emit Info(className,"New user refused");
+        else {
+            SendToUser(socket,QString::number(passwordError));
+            emit Info(className,"New " + nameList + " refused");
         }
     }
+    else {
+        SendToUser(socket,QString::number(dataError));
+        emit Info(className,"New " + nameList + " refused");
+    }
+
+    socket->flush();
+    socket->close();
 }
 
 bool Server::StartWebServer()
 {
-#ifdef WEBSECURED
-        SecureWebSocket();
-#endif
     QSqlQuery req;
     req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
     req.next();
@@ -410,7 +369,7 @@ bool Server::StartWebServer()
 
     req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
     req.next();
-    if(req.value(0).toInt() == 1)
+    if(req.value(0).toBool())
     {
         emit Info(className,"Server type : Web Socket");
         return webServer->listen(QHostAddress::Any,static_cast<quint16>(port));
@@ -420,38 +379,6 @@ bool Server::StartWebServer()
         emit Info(className,"Server type : TCP");
         return UserServer->listen(QHostAddress::Any,static_cast<quint16>(port));
     }
-}
-
-void Server::SecureWebSocket()
-{
-#ifdef WEBSECURED
-    QSslConfiguration sslConfiguration;
-    QFile certFile(QStringLiteral("CA/cacert.pem"));
-    QFile keyFile(QStringLiteral("CA/private/cakey.pem"));
-    certFile.open(QIODevice::ReadOnly);
-    keyFile.open(QIODevice::ReadOnly);
-    QSslCertificate certificate(&certFile, QSsl::Pem);
-    QSslKey sslKey(&keyFile, QSsl::Rsa, QSsl::Pem);
-    certFile.close();
-    keyFile.close();
-    sslConfiguration.setPeerVerifyMode(QSslSocket::VerifyNone);
-    sslConfiguration.setLocalCertificate(certificate);
-    sslConfiguration.setPrivateKey(sslKey);
-    sslConfiguration.setProtocol(QSsl::TlsV1SslV3);
-    webServer->setSslConfiguration(sslConfiguration);
-
-    connect(webServer, &QWebSocketServer::sslErrors, this, &Server::SslErrors);
-#endif
-
-}
-
-void Server::SslErrors(const QList<QSslError> &err)
-{
-#ifdef WEBSECURED
-    for (int i = 0;i<err.count();i++) {
-        emit Info(className,"SSL Error : " + err.at(i).errorString());
-    }
-#endif
 }
 
 void Server::NewWebConnexion()
@@ -491,92 +418,49 @@ void Server::WebDisconnect()
 void Server::ReceiptMessage(QString text)
 {
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
-    if(socket)
-    {
-        //ADMIN
-        if(socket->parent() == webAdminServer)
-        {
-            crypto->Decrypt_Data(text,"Admin");
-            if(webAdminList.contains(socket))
-            {
-                #ifdef WEBSECURED
-                    emit WebReceipt(socket,text,Admin);
-                #else
-                    emit WebReceipt(socket,text,Admin);
-                #endif
-            }
-            else if(text.contains(QString::number(noError)))
-            {
-                if(text.split(" ").count() == 2) {
-                    socket->setObjectName(text.split(" ").last());
-                    SendToWebUser(socket, QString::number(noError));
-                    webAdminList.append(socket);
-                    emit Info(className,"New web admin accepted");
-                }
-                else {
-                    SendToWebUser(socket,QString::number(passwordError));
-                    socket->flush();
-                    socket->close();
-                    emit Info(className,"New web admin refused");
-                }
+    if(!socket)
+        return;
 
-            }
-            else
-            {
-                SendToWebUser(socket,QString::number(dataError));
-                socket->flush();
-                socket->close();
-                emit Info(className,"New web admin refused");
-            }
-        }
-
-        //USER
-        if(socket->parent() == webServer)
-        {
-            crypto->Decrypt_Data(text,"User");
-            if(webUsersList.contains(socket))
-            {
-                #ifdef WEBSECURED
-                    emit WebReceipt(socket,text, User);
-                #else
-                    emit WebReceipt(socket,text,User);
-                #endif
-            }
-            else if(text.contains(QString::number(noError)))
-            {
-                if(text.split(" ").count() == 2) {
-                    socket->setObjectName(text.split(" ").last());
-                    SendToWebUser(socket, QString::number(noError));
-                    webUsersList.append(socket);
-                    emit Info(className,"New web user accepted");
-                }
-                else {
-                    SendToWebUser(socket,QString::number(passwordError));
-                    socket->flush();
-                    socket->close();
-                    emit Info(className,"New web user refused");
-                }
-
-            }
-            else
-            {
-                SendToWebUser(socket,QString::number(dataError));
-                socket->flush();
-                socket->close();
-                emit Info(className,"New web user refused");
-            }
-        }
+    QList<QWebSocket*> list = webUsersList;
+    QString nameList = "User";
+    int privilege = User;
+    if(socket->parent() == webAdminServer) {
+        list = webAdminList;
+        nameList = "Admin";
+        privilege = Admin;
     }
 
+    crypto->Decrypt_Data(text,nameList);
+    if(list.contains(socket))
+    {
+        emit WebReceipt(socket,text,privilege);
+    }
+    else if(text.contains(QString::number(noError)))
+    {
+        if(text.split(" ").count() == 2) {
+            socket->setObjectName(text.split(" ").last());
+            SendToWebUser(socket, QString::number(noError));
+            list.append(socket);
+            emit Info(className,"New web " + nameList + " accepted");
+        }
+        else {
+            SendToWebUser(socket,QString::number(passwordError));
+            emit Info(className,"New web " + nameList + " refused");
+        }
+    }
+    else
+    {
+        SendToWebUser(socket,QString::number(dataError));
+        emit Info(className,"New web " + nameList + " refused");
+    }
+    socket->flush();
+    socket->close();
 }
 
 void Server::SendToWebUser(QWebSocket *socket, QString data)
 {
     if(socket)
     {
-        #ifdef WEBSECURED
-            socket->sendTextMessage(data);
-        #else
         if(webUsersList.contains(socket) && (data != QString::number(dataError) || data != QString::number(passwordError))) {
             crypto->Encrypt_Data(data,"User");
             socket->sendTextMessage(data);
@@ -584,6 +468,5 @@ void Server::SendToWebUser(QWebSocket *socket, QString data)
         else {
             socket->sendTextMessage(data);
         }
-        #endif
     }
 }

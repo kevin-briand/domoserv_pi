@@ -33,7 +33,7 @@ class Server : public QObject
     Q_OBJECT
 public:
     Server();
-    //~Server();
+    ~Server();
     void Stop();
     void Reload();
     void Init();
@@ -53,7 +53,6 @@ private slots:
     void NewWebConnexion();
     void WebDisconnect();
     void ReceiptMessage(QString text);
-    void SslErrors(const QList<QSslError> &err);
 
 signals:
     void Receipt(QTcpSocket *client, QString data, int privilege);
@@ -61,7 +60,8 @@ signals:
     void Info(QString classname, QString text);
 
 private:
-    void SecureWebSocket();
+    template <class T>
+    void DisconnectUsers(QList<T> list);
 
     QTcpServer *server;
     QTcpServer *UserServer;
