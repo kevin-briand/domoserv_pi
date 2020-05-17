@@ -435,31 +435,44 @@ QString Interface::ReadData(QString data, int level)
                         return first + "GetABS=" + QString::number(cvOrder->GetABS());
                     }
                     else if(data.contains("GetRemainingTimeZ1")) {
-                        return first + "GetRemainingTimeZ1=" + QString::number(cvOrder->GetRemainingTime(Z1));
+                        int value = 0;
+                        if(cvOrder->GetABS() > 0) {
+                            value = cvOrder->GetABS();
+                        }
+                        else {
+                            value = cvOrder->GetRemainingTime(Z1);
+                        }
+                        return first + "GetRemainingTimeZ1=" + QString::number(value);
                     }
                     else if(data.contains("GetRemainingTimeZ2")) {
-                        return first + "GetRemainingTimeZ2=" + QString::number(cvOrder->GetRemainingTime(Z2));
+                        int value = 0;
+                        if(cvOrder->GetABS() > 0) {
+                            value = cvOrder->GetABS();
+                        }
+                        else {
+                            value = cvOrder->GetRemainingTime(Z2);
+                        }
+                        return first + "GetRemainingTimeZ2=" + QString::number(value);
                     }
                     else if(data.contains("GetRemainingTimeABS")) {
-                        return first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(3));
+                        return first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(frostFree));
                     }
                     else if(data.contains("GetLog")) {
                         return first + "GetLog=" + cvOrder->GetLog();
                     }
                     else if(data.contains("GetDataCPTEnergy")  || data.contains("GetDataOrder") || data.contains("GetDataTemp")) {
-                        QStringList listDate = data.split(";").last().split(":");
+                        QStringList listDate = data.split(";;").last().split(":");
                         if(listDate.count() != 2)
                             return QString("Error, bad format");
                         QStringList date = listDate.first().split("-");
                         QStringList endDate = listDate.last().split("-");
                         if(date.count() != 3 || endDate.count() != 3)
                             return QString("Error, bad format");
-                        emit ShowInfo(className,"GetDataInfo");
                         QDate d(date.at(0).toInt(),date.at(1).toInt(),date.at(2).toInt());
                         QDate f(endDate.at(0).toInt(),endDate.at(1).toInt(),endDate.at(2).toInt());
 
                         if(data.contains("GetDataCPTEnergy")) {
-                            return first + "GetDataCPTEnergy=" + cvOrder->GetDataCPTEnergy(d,f);
+                            return data + "=" + cvOrder->GetDataCPTEnergy(d,f);
                         }
                         else if(data.contains("GetDataOrder")) {
                             return first + "GetDataOrder=" + cvOrder->GetDataOrder(d,f);
@@ -476,6 +489,9 @@ QString Interface::ReadData(QString data, int level)
                         else {
                             return QString("Error");
                         }
+                    }
+                    else if(data.contains("GetCPTEnergyThisYear")) {
+
                     }
                 }
             }

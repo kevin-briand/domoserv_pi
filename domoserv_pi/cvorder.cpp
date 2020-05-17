@@ -1021,7 +1021,7 @@ int CVOrder::GetRemainingTime(int zone)
         return _timerZ1->remainingTime() / 1000;
     else if(zone == Z2)
         return _timerZ2->remainingTime() / 1000;
-    else if(zone == 3)
+    else if(zone == frostFree)
         return _abs->remainingTime() / 1000;
     else
         return -1;
@@ -1209,10 +1209,27 @@ QString CVOrder::GetDataCPTEnergy(QDate first, QDate end)
 {
     QSqlQuery req;
     QString result;
-    req.exec("SELECT * FROM Energy WHERE Date BETWEEN '" + first.toString("yyyy-MM-dd") + "' AND '" + end.toString("yyyy-MM-dd") + "'");
-    while(req.next())
-    {
-        result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "\r";
+
+    if(first != end) {
+        QDate date(first);
+        int day = 0;
+        while(date.operator<(end)) {
+            req.exec("SELECT * FROM Energy WHERE Date BETWEEN '" + date.toString("yyyy-MM-dd") + "' AND '" + date.toString("yyyy-MM-dd") + "'");
+            while(req.next())
+            {
+                day += req.value(3).toInt();
+            }
+            result += date.toString("yyyy-MM-dd") + "|00:00|" + QString::number(day) + "\r";
+            date = date.addDays(1);
+            day = 0;
+        }
+    }
+    else {
+        req.exec("SELECT * FROM Energy WHERE Date BETWEEN '" + first.toString("yyyy-MM-dd") + "' AND '" + end.toString("yyyy-MM-dd") + "'");
+        while(req.next())
+        {
+            result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "\r";
+        }
     }
     return result;
 }
@@ -1297,7 +1314,6 @@ QString CVOrder::GetDataTemp(QDate first, QDate end)
         result += req.value(1).toString() + "|" + req.value(2).toString() + "|" + req.value(3).toString() + "|" + req.value(4).toString() + ",";
     }
     result = result.remove(result.count()-1,result.count()-1);
-    emit Info(className,result);
     return result;
 }
 

@@ -16,6 +16,7 @@
 //Zone
 #define Z1  0
 #define Z2  1
+#define frostFree 2
 
 enum order{
     confort,

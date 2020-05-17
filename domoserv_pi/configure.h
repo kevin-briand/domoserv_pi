@@ -48,6 +48,7 @@ private:
     void SondeTempMenu();
     int DaytoInt(QString day);
     QString DaytoString(int day);
+    int inChoice(int min, int max);
 
 };
 

@@ -2,6 +2,8 @@
 
 //Version 1.1
 
+QMap<int, QString> _day {{1,"Lundi"},{2,"Mardi"},{3,"Mercredi"},{4,"Jeudi"},{5,"Vendredi"},{6,"Samedi"},{7,"Dimanche"}};
+
 Configure::Configure()
 {
     cout << "Connection au serveur..." << endl;
@@ -28,37 +30,33 @@ Configure::Configure()
 
 void Configure::GeneralMenu()
 {
-    int result = 0;
-
     cout << "1 - Etat serveur" << endl;
     cout << "2 - Configuration" << endl;
     cout << "3 - Test" << endl;
     cout << "4 - Quitter" << endl;
 
-    while(result < 1 || result > 4)
-    {
+    int result = inChoice(1,4);
+
+    switch (result) {
+    case 1:
+        StateMenu();
+    case 2:
+        ConfigMenu();
+    case 3:
+        Test();
+    case 4:
+        this->deleteLater();
+    }
+}
+
+int Configure::inChoice(int min, int max) {
+    int result = 0;
+    while(result < min || result > max) {
         cout << "Choix : ";
         cin >> result;
         cout << endl;
     }
-
-
-    if(result == 1)
-    {
-        StateMenu();
-    }
-    else if(result == 2)
-    {
-        ConfigMenu();
-    }
-    else if(result == 3)
-    {
-        Test();
-    }
-    else if(result == 4)
-    {
-        this->deleteLater();
-    }
+    return result;
 }
 
 void Configure::Test()
@@ -309,14 +307,7 @@ void Configure::ConfigGeneralMenu()
     cout << "1 - Gestionnaire chauffage " << state.toStdString() << endl;
     cout << "2 - Retour" << endl;
 
-    int result = 0;
-
-    while(result < 1 || result > 2)
-    {
-        cout << "Choix : ";
-        cin >> result;
-        cout << endl;
-    }
+    int result = inChoice(1,2);
 
     QString value = "1";
     switch (result) {
@@ -397,14 +388,8 @@ void Configure::ConfigCVOrderMenu()
 
     cout << "14 - Retour" << endl;
 
-    int result = 0;
+    int result = inChoice(1,14);
 
-    while(result < 1 || result > 14)
-    {
-        cout << "Choix : ";
-        cin >> result;
-        cout << endl;
-    }
     int p;
     string v;
     QString v2;
@@ -528,11 +513,7 @@ void Configure::IpMenu()
     cout << "2 - Supprimer" << endl;
     cout << "3 - Retour" << endl;
 
-    int result = 0;
-    while(result < 1 || result > 3) {
-        cout << "Choix : ";
-        cin >> result;
-    }
+    int result = inChoice(1,3);
     cout << endl;
 
     if(result == 1) {
@@ -614,13 +595,7 @@ void Configure::ProgMenu()
     cout << "2 - Supprimer programmation" << endl;
     cout << "3 - Retour" << endl;
 
-    int result = 0;
-    while(result < 1 || result > 3)
-    {
-        cout << "Choix : ";
-        cin >> result;
-        cout << endl;
-    }
+    int result = inChoice(1,3);
 
 
     if(result == 1) {
@@ -639,69 +614,55 @@ void Configure::ProgMenu()
 
         //Jour
         int r = 0;
+
         QStringList day;
         while(r != 8) {
-            cout << "Selectionner le(s) jour(s) :" << endl;
-            if(!day.contains("1"))
-                cout << "1 - Lundi" << endl;
-            if(!day.contains("2"))
-                cout << "2 - Mardi" << endl;
-            if(!day.contains("3"))
-                cout << "3 - Mercredi" << endl;
-            if(!day.contains("4"))
-                cout << "4 - Jeudi" << endl;
-            if(!day.contains("5"))
-                cout << "5 - Vendredi" << endl;
-            if(!day.contains("6"))
-                cout << "6 - Samedi" << endl;
-            if(!day.contains("7"))
-                cout << "7 - Dimanche" << endl;
+            QMapIterator<int, QString> dayMap(_day);
+            while (dayMap.hasNext()) {
+                dayMap.next();
+                if(!day.contains(dayMap.value())) {
+                    cout << dayMap.key() << " - " << dayMap.value().toStdString() << endl;
+                }
+            }
             cout << "8 - Suivant" << endl;
-            cout << "Choix : ";
-            cin >> r;
-            cout << endl;
-
-            if(r > 0 && r < 8) {
-                day.append(QString::number(r));
+            r = inChoice(1,8);
+            if(r != 8 && !day.contains(_day.value(r))) {
+                day.append(_day.value(r));
             }
         }
 
         //Zone
         r = 0;
         int zone = -1;
-        while(r != 1 && r != 2) {
-            cout << "Selectionner la zone :" << endl;
-            cout << "1 - Zone 1" << endl;
-            cout << "2 - Zone 2" << endl;
-            cout << "Choix : ";
-            cin >> r;
-            cout << endl;
+
+        cout << "Selectionner la zone :" << endl;
+        cout << "1 - Zone 1" << endl;
+        cout << "2 - Zone 2" << endl;
+        r = inChoice(1,2);
+
+        switch (r) {
+        case 1: zone = Z1;
+        case 2: zone = Z2;
         }
-        if(r == 1)
-            zone = Z1;
-        else
-            zone = Z2;
 
         //Etat
         r = 0;
         int state = -1;
-        while(r != 1 && r != 2) {
-            cout << "Selectionner l'état :" << endl;
-            cout << "1 - Confort" << endl;
-            cout << "2 - Eco" << endl;
-            cout << "Choix : ";
-            cin >> r;
-            cout << endl;
+
+        cout << "Selectionner l'état :" << endl;
+        cout << "1 - Confort" << endl;
+        cout << "2 - Eco" << endl;
+        r = inChoice(1,2);
+
+        switch (r) {
+        case 1: state = confort;
+        case 2: state = eco;
         }
-        if(r == 1)
-            state = confort;
-        else
-            state = eco;
 
         //Resumé
         cout << "Les horaires suivantes seront ajouté à la base de données :" << endl;
         for(int i=0;i<day.count();i++) {
-            cout << DaytoString(day.at(i).toInt()).toStdString() << " " << hour.toStdString();
+            cout << day.at(i).toStdString() << " " << hour.toStdString();
             if(zone == Z1)
                 cout << " Z1";
             else
@@ -715,11 +676,10 @@ void Configure::ProgMenu()
         cout << "Enregistrer ?" << endl;
 
         r = 0;
-        while(r != 1 && r != 2) {
-            cout << "1 - Oui" << endl;
-            cout << "2 - Non" << endl;
-            cin >> r;
-        }
+        cout << "1 - Oui" << endl;
+        cout << "2 - Non" << endl;
+        r = inChoice(1,2);
+
         if(r == 1) {
             req.exec("SELECT MAX(ID) FROM CVOrder");
             req.next();
@@ -778,46 +738,6 @@ void Configure::ProgMenu()
     }
     else {
         ConfigCVOrderMenu();
-    }
-}
-
-int Configure::DaytoInt(QString day)
-{
-    if(day == "Lundi")
-        return 1;
-    else if(day == "Mardi")
-        return 2;
-    else if(day == "Mercredi")
-        return 3;
-    else if(day == "Jeudi")
-        return 4;
-    else if(day == "Vendredi")
-        return 5;
-    else if(day == "Samedi")
-        return 6;
-    else if(day == "Dimanche")
-        return 7;
-}
-
-QString Configure::DaytoString(int day)
-{
-    switch (day) {
-    case 1:
-        return "Lundi";
-    case 2:
-        return "Mardi";
-    case 3:
-        return "Mercredi";
-    case 4:
-        return "Jeudi";
-    case 5:
-        return "Vendredi";
-    case 6:
-        return "Samedi";
-    case 7:
-        return "Dimanche";
-    default:
-        return "";
     }
 }
 

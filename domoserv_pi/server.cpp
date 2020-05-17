@@ -534,7 +534,6 @@ void Server::ReceiptMessage(QString text)
         if(socket->parent() == webServer)
         {
             crypto->Decrypt_Data(text,"User");
-            emit Info(className,text);
             if(webUsersList.contains(socket))
             {
                 #ifdef WEBSECURED
