@@ -34,9 +34,9 @@ class Server : public QObject
 public:
     Server();
     ~Server();
-    void Stop();
-    void Reload();
-    void Init();
+    bool Stop();
+    bool Reload();
+    bool Init();
     bool StartServer();
     void SendToUser(QTcpSocket *user, QString data);
 
@@ -75,6 +75,25 @@ private:
     QString password;
     QString webPassword;
     CryptoFire *crypto;
+};
+
+class ServerException: public QException
+{
+
+public:
+    ServerException(int const& message) : message(message) {}
+    void raise() const override { throw *this; }
+    ServerException *clone() const override { return new ServerException(*this); }
+    int getMessage() const { return message; }
+
+    enum exception {
+        UnkwnownError,
+        NotClosed,
+        UnknownType
+    };
+
+private:
+      int message;
 };
 
 #endif // SERVER_H

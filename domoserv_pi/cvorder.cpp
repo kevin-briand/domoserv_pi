@@ -186,114 +186,47 @@ void CVOrder::RunChangeOrder()
     if(!t)
         return;
 
-    switch (_priority) {
-    case horloge://------------------------------
-        if(_timerZ1 == t)
-        {
-            int state = _timerZ1->property("state").toInt();
-            ChangeOrder(state,Z1);
-            NextProgram(Z1);
-        }
+    if(_priority == horloge)//------------------------------
+    {
+        int zone = Z1;
         if(_timerZ2 == t)
-        {
-            int state = _timerZ2->property("state").toInt();
-            ChangeOrder(state,Z2);
-            NextProgram(Z2);
-        }
-        break;
-    case network://---------------------------
-        if(_timerPing == t)
-        {
-            if(PingNetwork())
-                ChangeOrder(confort,Z1);
-            else
-                ChangeOrder(eco,Z1);
-        }
-        if(_timerZ1 == t)//__________Z1
-        {
-            _lastStateZ1 = _timerZ1->property("state").toInt();
-            if(_lastStateZ1 == confort)
-            {
-                QSqlQuery req;
-                req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
-                if(req.next())
-                {
-                    _timerPing->setSingleShot(false);
-                    _timerPing->start(req.value("Value2").toInt());
-                }
-                else
-                    emit Info(className,tr("_timerPing not started(Act_Network not found)"));
-            }
-            else
-            {
-                ChangeOrder(_lastStateZ1,Z1);
-                _timerPing->stop();
-            }
-            NextProgram(Z1);
-        }
-        if(_timerZ2 == t)//__________Z2
-        {
-            _lastStateZ2 = _timerZ2->property("state").toInt();
-            if(_lastStateZ2 == confort)
-            {
-                QSqlQuery req;
-                req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
-                if(req.next())
-                {
-                    _timerPing->setSingleShot(false);
-                    _timerPing->start(req.value("Value2").toInt());
-                }
-                else
-                    emit Info(className,tr("_timerPing not started(Act_Network not found)"));
-            }
-            else
-            {
-                ChangeOrder(_lastStateZ2,Z2);
-                _timerPing->stop();
-            }
-            NextProgram(Z2);
-        }
-        break;
-    case networkAndHorloge://-----------------------------
+            zone = Z2;
+
+        int state = t->property("state").toInt();
+        ChangeOrder(state,zone);
+        NextProgram(zone);
+    }
+    else//---------------------------
+    {
         if(_timerPing == t)
         {
             if(PingNetwork())
             {
                 if(_lastStateZ1 == confort)
                     ChangeOrder(confort,Z1);
+                else if(_priority == networkAndHorloge)
+                    ChangeOrder(eco,Z1);
+
                 if(_lastStateZ2 == confort)
                     ChangeOrder(confort,Z2);
-                _timerPing->stop();
-            }
-        }
-        if(_timerZ1 == t)//__________Z1
-        {
-            _lastStateZ1 = _timerZ1->property("state").toInt();
-            if(_lastStateZ1 == confort)
-            {
-                QSqlQuery req;
-                req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
-                if(req.next())
-                {
-                    _timerPing->setSingleShot(false);
-                    _timerPing->start(req.value("Value2").toInt());
-                    emit Info(className,tr("_timerPing started"));
-                }
-                else
-                    emit Info(className,tr("_timerPing not started(Act_Network not found)"));
-            }
-            else
-            {
-                ChangeOrder(_lastStateZ1,Z1);
-                _timerPing->stop();
-            }
-            NextProgram(Z1);
-        }
+                else if(_priority == networkAndHorloge)
+                    ChangeOrder(eco,Z2);
 
-        if(_timerZ2 == t)//__________Z2
+                if(_priority == networkAndHorloge)
+                    _timerPing->stop();
+            }
+        }
+        else if(_timerZ1 == t || _timerZ2 == t)
         {
-            _lastStateZ2 = _timerZ2->property("state").toInt();
-            if(_lastStateZ2 == confort)
+            int zone = Z1;
+            if(_timerZ1 == t)
+                _lastStateZ1 = _timerZ1->property("state").toInt();
+            else
+            {
+                _lastStateZ2 = _timerZ2->property("state").toInt();
+                zone = Z2;
+            }
+            if(t->property("state").toInt() == confort)
             {
                 QSqlQuery req;
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
@@ -301,21 +234,17 @@ void CVOrder::RunChangeOrder()
                 {
                     _timerPing->setSingleShot(false);
                     _timerPing->start(req.value("Value2").toInt());
-                    emit Info(className,tr("_timerPing started"));
                 }
                 else
                     emit Info(className,tr("_timerPing not started(Act_Network not found)"));
             }
             else
             {
-                ChangeOrder(_lastStateZ2,Z2);
+                ChangeOrder(t->property("state").toInt(),zone);
                 _timerPing->stop();
             }
-            NextProgram(Z2);
+            NextProgram(zone);
         }
-        break;
-    default:
-        break;
     }
 }
 
@@ -368,17 +297,7 @@ void CVOrder::ChangeOrder(int order,int zone)
             output = _z1Hg;
         }
 
-        switch(_CVStateZ1) {
-        case confort:
-            nameActualOrder = "Confort";
-            break;
-        case eco:
-            nameActualOrder = "Eco";
-            break;
-        case horsGel:
-            nameActualOrder = "Hors gel";
-            break;
-        }
+        nameActualOrder = StateToString(_CVStateZ1);
         _CVStateZ1 = order;
     }
     else if(zone == Z2)
@@ -395,17 +314,7 @@ void CVOrder::ChangeOrder(int order,int zone)
             output = _z2Hg;
         }
 
-        switch(_CVStateZ2) {
-        case confort:
-            nameActualOrder = "Confort";
-            break;
-        case eco:
-            nameActualOrder = "Eco";
-            break;
-        case horsGel:
-            nameActualOrder = "Hors gel";
-            break;
-        }
+        nameActualOrder = StateToString(_CVStateZ2);
         _CVStateZ2 = order;
     }
     else
@@ -414,20 +323,9 @@ void CVOrder::ChangeOrder(int order,int zone)
         return;
     }
 
-    switch(order) {
-    case confort:
-        nameNewOrder = "Confort";
-        break;
-    case eco:
-        nameNewOrder = "Eco";
-        break;
-    case horsGel:
-        nameNewOrder = "Hors gel";
-        break;
-    default:
-        emit Info(className,"Error bad order " + QString::number(order));
+    if(order > horsGel)
         return;
-    }
+    nameNewOrder = StateToString(order);
 
     //Set Output
     if(order != confort)
@@ -445,6 +343,20 @@ void CVOrder::ChangeOrder(int order,int zone)
     req.exec("UPDATE CVOrder SET Value1='" + QString::number(order) + "' WHERE Name='ActualZ" + QString::number(zone+1) + "'");
 
     emit Info(className,"Change order " + nameActualOrder.toLatin1() + " to " + nameNewOrder.toLatin1() + " in " + zoneSelect.toLatin1());
+}
+
+QString CVOrder::StateToString(int state)
+{
+    switch(state) {
+    case confort:
+        return "Confort";
+    case eco:
+        return "Eco";
+    case horsGel:
+        return "Hors gel";
+    default:
+        return "Bad state";
+    }
 }
 
 void CVOrder::ResetOutputState()
@@ -470,22 +382,7 @@ void CVOrder::InitProg()
     if(_endABS)
     {
         QDateTime dt;
-        QString cDay = dt.currentDateTime().toString("ddd");
-        int day(0);
-        if(cDay == "Mon" || cDay == "lun.")
-            day = 1;
-        else if(cDay == "Tue" || cDay == "mar.")
-            day = 2;
-        else if(cDay == "Wed" || cDay == "mer.")
-            day = 3;
-        else if(cDay == "Thu" || cDay == "jeu.")
-            day = 4;
-        else if(cDay == "Fri" || cDay == "ven.")
-            day = 5;
-        else if(cDay == "Sat" || cDay == "sam.")
-            day = 6;
-        else if(cDay == "Sun" || cDay == "dim.")
-            day = 7;
+        int day = DayToInt(dt.currentDateTime().toString("ddd"));
 
         //find next hour
         QDate date;
@@ -546,25 +443,30 @@ void CVOrder::InitProg()
     }
 }
 
+int CVOrder::DayToInt(QString day)
+{
+    if(day == "Mon" || day == "lun.")
+        return 1;
+    else if(day == "Tue" || day == "mar.")
+        return 2;
+    else if(day == "Wed" || day == "mer.")
+        return 3;
+    else if(day == "Thu" || day == "jeu.")
+        return 4;
+    else if(day == "Fri" || day == "ven.")
+        return 5;
+    else if(day == "Sat" || day == "sam.")
+        return 6;
+    else if(day == "Sun" || day == "dim.")
+        return 7;
+    else
+        return -1;
+}
+
 void CVOrder::NextProgram(int zone)
 {
     QDateTime dt;
-    QString cDay = dt.currentDateTime().toString("ddd");
-    int day(0);
-    if(cDay == "Mon")
-        day = 1;
-    else if(cDay == "Tue")
-        day = 2;
-    else if(cDay == "Wed")
-        day = 3;
-    else if(cDay == "Thu")
-        day = 4;
-    else if(cDay == "Fri")
-        day = 5;
-    else if(cDay == "Sat")
-        day = 6;
-    else if(cDay == "Sun")
-        day = 7;
+    int day = DayToInt(dt.currentDateTime().toString("ddd"));
 
     //find next hour
     QDate date;

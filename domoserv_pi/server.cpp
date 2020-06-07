@@ -38,9 +38,6 @@ Server::Server()
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','','','','')");
     }
-
-
-
 }
 
 Server::~Server()
@@ -53,57 +50,42 @@ Server::~Server()
     webServer->deleteLater();
 }
 
-void Server::Stop()
+bool Server::Stop()
 {
     //TCP SERVER
-    emit Info(className,"Forced disconnect admin");
+    emit Info(className,"Forced admin logout");
     DisconnectUsers(adminList);
     //WEB SERVER
-    emit Info(className,"Forced disconnect web admin");
+    emit Info(className,"Forced web admin logout");
     DisconnectUsers(webAdminList);
     //TCP SERVER USER
-    emit Info(className,"Forced disconnect admin");
+    emit Info(className,"Forced admin logout");
     DisconnectUsers(usersList);
     //WEB SERVER USER
-    emit Info(className,"Forced disconnect web user");
+    emit Info(className,"Forced web user logout");
     DisconnectUsers(webUsersList);
     //VARIABLES
     dataSize = 0;
     password.clear();
     webPassword.clear();
 
-    emit Info(className,"Closing server...");
+    emit Info(className,"Server shutdown...");
     server->close();
     webAdminServer->close();
     UserServer->close();
     webServer->close();
 
     //TEST
-    bool test = true;
-    if(server->isListening())
+    if(!server->isListening() && !webAdminServer->isListening() && !UserServer->isListening() && !webServer->isListening())
     {
-        emit Info(className,"Admin Server not closed !");
-        test = false;
+        emit Info(className,"[\033[0;32m  OK  \033[0m] Closed server");
+        return true;
     }
-    if(webAdminServer->isListening())
-    {
-        emit Info(className,"Web Admin Server not closed !");
-        test = false;
-    }
-    if(UserServer->isListening())
-    {
-        emit Info(className,"User Server not closed !");
-        test = false;
-    }
-    if(webServer->isListening())
-    {
-        emit Info(className,"Web User Server not closed !");
-        test = false;
-    }
-    if(test)
-        emit Info(className,"[\033[0;32m  OK  \033[0m] Server closed");
     else
+    {
         emit Info(className,"[\033[0;31mFAILED\033[0m] Server not closed");
+        return false;
+    }
 }
 
 template <class T>
@@ -111,19 +93,21 @@ void Server::DisconnectUsers(QList<T> list)
 {
     for(int i=0;i<list.count();i++)
     {
-        if(typeid(list.at(i)) == typeid(QTcpSocket) || typeid(list.at(i) )== typeid(QWebSocket)) {
+        if(typeid(list.at(i)) == typeid(QTcpSocket) || typeid(list.at(i)) == typeid(QWebSocket)) {
             list.at(i)->close();
         }
         else {
-            throw;
+            throw ServerException::UnknownType;
         }
     }
     list.clear();
 }
 
-void Server::Reload()
+bool Server::Reload()
 {
-    Stop();
+
+    if(!Stop())
+        return false;
 
     //INIT SERVER
     server = new QTcpServer;
@@ -134,13 +118,12 @@ void Server::Reload()
     webServer = new QWebSocketServer("webServer",QWebSocketServer::NonSecureMode);
     webAdminServer = new QWebSocketServer("webAdminServer",QWebSocketServer::NonSecureMode);
 
-    Init();
+    return Init();
 }
 
-void Server::Init()
+bool Server::Init()
 {
     emit Info(className,"Starting server");
-    emit Info(className,QString::number(sizeof (quint16)));
     dataSize = 0;
 
     //Server Admin
@@ -193,8 +176,10 @@ void Server::Init()
 
     //CryptoFire
     crypto = new CryptoFire;
-    crypto->Add_Encrypted_Key("Admin",password);
-    crypto->Add_Encrypted_Key("User",webPassword);
+    if(crypto->Add_Encrypted_Key("Admin",password) &&
+            crypto->Add_Encrypted_Key("User",webPassword))
+        return true;
+    return false;
 }
 
 bool Server::StartServer()
@@ -243,12 +228,14 @@ void Server::NewConnexion()
 }
 
 void Server::Disconnect()
-{
+{    
     QTcpSocket *co = qobject_cast<QTcpSocket *>(sender());
+    QString privilege = "User";
     if(adminList.removeOne(co))
-        emit Info(className,"Admin disconnected(" + co->peerAddress().toString().toLatin1() + ")");
-    else if(usersList.removeOne(co))
-        emit Info(className,"User disconnected(" + co->peerAddress().toString().toLatin1() + ")");
+        privilege = "Admin";
+    usersList.removeOne(co);
+
+    emit Info(className,co->objectName() + " disconnected(" + privilege + ", " + co->peerAddress().toString().toLatin1() + ")");
 }
 
 void Server::SendToUser(QTcpSocket *user, QString data)
@@ -263,14 +250,12 @@ void Server::SendToUser(QTcpSocket *user, QString data)
     if(data.isEmpty())
         out << crypto->Get_Key();
     else {
-        if(usersList.contains(user) && (data != QString::number(dataError) || data != QString::number(passwordError))) {
+        if(usersList.contains(user) && (data != QString::number(dataError) || data != QString::number(passwordError)))
             crypto->Encrypt_Data(data,"User");
-            out << data;
-        }
-        else {
+        else
             crypto->Encrypt_Data(data,"Admin");
-            out << data;
-        }
+
+        out << data;
     }
 
     out.device()->seek(0);
@@ -314,16 +299,12 @@ void Server::ReceiptData()
             int privilege = User;
             if(adminList.contains(socket))
                 privilege = Admin;
-            if(privilege == User) {
+            if(privilege == User)
                 crypto->Decrypt_Data(data,"User");
-                emit Receipt(socket,data,privilege);
-            }
-            else {
+            else
                 crypto->Decrypt_Data(data,"Admin");
-                emit Receipt(socket,data,privilege);
-            }
+             emit Receipt(socket,data,privilege);
         }
-
         dataSize = 0;
     }
 }
@@ -338,23 +319,27 @@ void Server::AddUserToList(QTcpSocket *socket, QString data)
     }
 
     crypto->Decrypt_Data(data,nameList);
+    int lastError = noError;
     if(data.contains(QString::number(noError)))
     {
         if(data.split(" ").count() == 2) {
             socket->setObjectName(data.split(" ").last());
-            SendToUser(socket, QString::number(noError));
             list.append(socket);
-            emit Info(className,"New " + nameList + " accepted");
         }
         else {
-            SendToUser(socket,QString::number(passwordError));
-            emit Info(className,"New " + nameList + " refused");
+            lastError = passwordError;
         }
     }
     else {
-        SendToUser(socket,QString::number(dataError));
-        emit Info(className,"New " + nameList + " refused");
+        lastError = dataError;
     }
+
+    SendToUser(socket, QString::number(lastError));
+
+    QString auth = "refused";
+    if(lastError == noError)
+        auth = "accepted";
+    emit Info(className,"New " + nameList + " " + auth);
 
     socket->flush();
     socket->close();
@@ -409,7 +394,7 @@ void Server::NewWebConnexion()
 void Server::WebDisconnect()
 {
     QWebSocket *socket = qobject_cast<QWebSocket *>(sender());
-    emit Info(className,"Web user disconnected(" + socket->peerAddress().toString() + ")");
+    emit Info(className,"Web user disconnected(" + socket->objectName() + ", " + socket->peerAddress().toString() + ")");
     webUsersList.removeOne(socket);
     webAdminList.removeOne(socket);
     socket->deleteLater();

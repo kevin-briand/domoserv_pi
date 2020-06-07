@@ -105,10 +105,13 @@ signals:
     void Info(QString textClass, QString text);
 
 private:
+    QSqlQuery request(int type, QString arg1, QString arg2, QString arg3 = nullptr, QString arg4 = nullptr, QString arg5 = nullptr);
     void SetOutputState(int digitalIO,int state);
     void ChangeOrder(int order, int zone);
     void InitCPTEnergy();
     bool ReadNetwork();
+    QString StateToString(int state);
+    int DayToInt(QString day);
     int _CVStateZ1 = 0;
     int _CVStateZ2 = 0;
     int _lastStateZ1 = 0;
