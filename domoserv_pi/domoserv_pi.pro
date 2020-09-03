@@ -9,17 +9,15 @@ CONFIG += c++11
 unix:LIBS += -L/Home/kevin/raspi/sysroot/usr/lib -lwiringPi
 unix:INCLUDEPATH += /Home/kevin/raspi/sysroot/usr/lib
 
-TARGET = domoserv_pi
+TARGET = domoserv_pi2
 CONFIG += console
 CONFIG -= app_bundle
 
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    ../../CryptoFire/src/cryptofire.cpp \
     configure.cpp \
     cvorder.cpp \
-    server.cpp \
     interface.cpp
 
 # The following define makes your compiler emit warnings if you use
@@ -34,9 +32,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 HEADERS += \
-    ../../CryptoFire/src/cryptofire.h \
     configure.h \
     cvorder.h \
-    server.h \
     interface.h
 
+unix:!macx: LIBS += -L$$PWD/../build/ -lServerFire
+
+INCLUDEPATH += $$PWD/../build
+DEPENDPATH += $$PWD/../build
+
+unix:!macx: LIBS += -L$$PWD/../../CryptoFire/build-CryptoFire-RPI-Release/ -lCryptoFire
+
+INCLUDEPATH += $$PWD/../../CryptoFire/build-CryptoFire-RPI-Release
+DEPENDPATH += $$PWD/../../CryptoFire/build-CryptoFire-RPI-Release

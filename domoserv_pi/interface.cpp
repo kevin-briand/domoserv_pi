@@ -1,4 +1,5 @@
 #include "interface.h"
+#include "../../ServerFire/src/serverfire.h"
 
 //Version 1.02
 
@@ -19,14 +20,57 @@ Interface::Interface(bool &exit)
     {
         Init();
 
-        server = new Server;
-        connect(server,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
-        server->Init();
-        connect(server,SIGNAL(Receipt(QTcpSocket*,QString,int)),this,SLOT(ReceiptDataFromServer(QTcpSocket*,QString,int)));
-        connect(server, &Server::WebReceipt, this, &Interface::ReceiptDataFromWebServer);
+
+
+        server = new ServerFire(this);
+        connect(server,&ServerFire::Info,this,&Interface::ShowInfo);
+        connect(server,&ServerFire::ReceiptData,this,&Interface::ReceiptDataFromServer);
+
+        //ADMIN SERVER
+        QSqlQuery req;
+        req.exec("SELECT Value1 FROM General WHERE Name='ActAdminServer'");
+        req.next();
+        if(req.value(0).toBool()) {
+            req.exec("SELECT Value1 FROM General WHERE Name='Password'");
+            req.next();
+            QString password = req.value(0).toString();
+            req.exec("SELECT Value1 FROM General WHERE Name='Port'");
+            req.next();
+            int port = req.value(0).toInt();
+            req.exec("SELECT Value1 FROM General WHERE Name='WebAdminSocket'");
+            req.next();
+            int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
+
+            server->RunServer(type,GlobalServer::Admin,port,password,QStringList());
+
+            ShowInfo(className,"-------------------------ADMIN SERVER---------------------------");
+            ShowInfo(className, QString("Password : %0").arg(password));
+            ShowInfo(className, QString("Port : %0").arg(port));
+            ShowInfo(className, QString("Online : %0").arg(server->IsOnline(GlobalServer::Admin) ? "TRUE" : "FALSE"));
+            ShowInfo(className,"----------------------------------------------------------------");
+        }
+
+        //USER SERVER
+        req.exec("SELECT Value1 FROM General WHERE Name='WebPassword'");
+        req.next();
+        QString password = req.value(0).toString();
+        req.exec("SELECT Value1 FROM General WHERE Name='WebPort'");
+        req.next();
+        int port = req.value(0).toInt();
+        req.exec("SELECT Value1 FROM General WHERE Name='WebSocket'");
+        req.next();
+        int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
+
+        qDebug() << "RUN SERVER : "<< server->RunServer(type,GlobalServer::User,port,password,QStringList());
+
+        ShowInfo(className,"--------------------------USER SERVER---------------------------");
+        ShowInfo(className, QString("Password : %0").arg(password));
+        ShowInfo(className, QString("Port : %0").arg(port));
+        ShowInfo(className, QString("Online : %0").arg(server->IsOnline(GlobalServer::User) ? "TRUE" : "FALSE"));
+        ShowInfo(className,"----------------------------------------------------------------");
+
 
         cvOrder = new CVOrder;
-        QSqlQuery req;
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
         if(req.value("Value1").toBool())
@@ -93,7 +137,21 @@ void Interface::Init()
         req.exec("SELECT MAX(ID) FROM General");
         req.next();
         int id = req.value(0).toInt()+1;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')"); 
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','ActAdminServer','0','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','admin','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','0','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','0','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPort','49155','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','user','','','')");
     }
     req.exec("SELECT * FROM General WHERE Name='log'");
     if(!req.next())
@@ -130,11 +188,11 @@ void Interface::ShowInfo(QString classText, QString text)
     }
 }
 
-void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data, int privilege)
+void Interface::ReceiptDataFromServer(QString client, QString data)
 {
     if(data.contains("Reload"))
     {
-        server->Reload();
+        //server->Reload();
         QSqlQuery req;
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
@@ -143,23 +201,19 @@ void Interface::ReceiptDataFromServer(QTcpSocket *user, QString data, int privil
     }
     else
     {
-        server->SendToUser(user,ReadData(data,privilege));
+        int privilege = client.contains("A") ? GlobalServer::Admin : GlobalServer::User;
+        server->SendDataToClient(client, ReadData(data, privilege));
     }
-}
-
-void Interface::ReceiptDataFromWebServer(QWebSocket *user, QString data, int privilege)
-{
-    server->SendToWebUser(user,ReadData(data,privilege));
 }
 
 QString Interface::ReadData(QString data, int level)
 {
-    if(level == Admin)
+    if(level == GlobalServer::Admin)
     {
         if(data.split("|").count() != 2)
         {
             ShowInfo(className,"Data corrupted !");
-            return QString(dataError);
+            return QString(GlobalServer::dataError);
         }
         else
         {
@@ -391,7 +445,7 @@ QString Interface::ReadData(QString data, int level)
             }
         }
     }
-    else if(level == User)
+    else if(level == GlobalServer::User)
     {
         if(data.contains("|")) {
             if(data.contains("CVOrder")) {
@@ -498,7 +552,7 @@ QString Interface::ReadData(QString data, int level)
         }
         else {
             ShowInfo(className,"data corrupted");
-            return QString(dataError);
+            return QString(GlobalServer::dataError);
         }
     }
     else

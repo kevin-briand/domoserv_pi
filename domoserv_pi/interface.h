@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <cvorder.h>
-#include <server.h>
 #include <QtNetwork>
 #include <stdio.h>
 #include <iostream>
@@ -11,7 +10,7 @@
 #include <QFile>
 #include <QDesktopServices>
 #include <configure.h>
-
+#include <../../ServerFire/src/serverfire.h>
 
 #define className "General"
 
@@ -26,14 +25,13 @@ public:
 
 public slots:
     void ShowInfo(QString classText,QString text);
-    void ReceiptDataFromServer(QTcpSocket *user, QString data, int privilege);
-    void ReceiptDataFromWebServer(QWebSocket *user, QString data, int privilege);
+    void ReceiptDataFromServer(QString client, QString data);
     void StartUpdate();
 
 private:
     QString ReadData(QString data, int level);
     CVOrder *cvOrder;
-    Server *server;
+    ServerFire *server;
     bool _log = false;
     QString _linkLog;
     QTimer _update;
