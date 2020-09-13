@@ -62,9 +62,9 @@ void CVOrder::Init()
         id++;
         int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Act_Network','0','30000','','')");
         id++;
-        int test5 = req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ1','0','','','')");
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','StatusZ1','0','','','')");
         id++;
-        int test6 = req.exec("INSERT INTO VALUES('" + QString::number(id) + "','StatusZ2','0','','','')");
+        int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','StatusZ2','0','','','')");
 
         if(test && test2 && test3 && test4 && test5 && test6)
             emit Info(className,"[\033[0;32m  OK  \033[0m] Rows created ");
@@ -333,7 +333,7 @@ void CVOrder::ChangeOrder(int order,int zone)
 
     //history
     QSqlQuery req;
-    req.exec("SELECT MAX(ID) FROM Order");
+    req.exec("SELECT MAX(ID) FROM State");
     req.next();
     int id = req.value(0).toInt()+1;
     req.exec("INSERT INTO State VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") + "','" +
@@ -948,7 +948,7 @@ void CVOrder::InitCPTEnergy()
         id++;
         int test4 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','GPIO','" + QString::number(HCCPTEnergy) + "','5','','')");
         id++;
-        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/data/cptenergy/,'','','')");
+        int test5 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','FileCPTEnergy','/home/pi/domoserv_pi/data/cptenergy/','','','')");
         id++;
         int test6 = req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','ImpWattCPTEnergy','1','','','')");
 
@@ -1079,15 +1079,9 @@ void CVOrder::UseCPTEnergy(bool value)
 {
     QSqlQuery req;
     if(value)
-    {
         req.exec("UPDATE CVOrder SET Value1='1' WHERE Name='ActCPTEnergy'");
-        InitCPTEnergy();
-    }
     else
-    {
         req.exec("UPDATE CVOrder SET Value1='0' WHERE Name='ActCPTEnergy'");
-        StopCPTEnergy();
-    }
 }
 
 void CVOrder::UseHCCPTEnergy(bool value)
@@ -1097,9 +1091,6 @@ void CVOrder::UseHCCPTEnergy(bool value)
         req.exec("UPDATE CVOrder SET Value1='1' WHERE Name='ActHCCPTEnergy'");
     else
         req.exec("UPDATE CVOrder SET Value1='0' WHERE Name='ActHCCPTEnergy'");
-
-    StopCPTEnergy();
-    InitCPTEnergy();
 }
 
 void CVOrder::StopCPTEnergy()
