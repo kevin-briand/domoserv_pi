@@ -41,11 +41,23 @@ Interface::Interface(bool &exit)
             req.next();
             int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
 
+            int keySize, codeSize, charset = -1;
+            req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
+            if(req.next()) {
+                keySize = req.value("Value1").toInt();
+                codeSize = req.value("Value2").toInt();
+                charset = req.value("Value3").toInt();
+            }
+            server->SetCrypto(keySize,codeSize,charset);
             server->RunServer(type,GlobalServer::Admin,port,password,QStringList());
 
             ShowInfo(className,"-------------------------ADMIN SERVER---------------------------");
+            ShowInfo(className, QString("Type : %0").arg((type == GlobalServer::TCP) ? "TCP" : "WEB"));
             ShowInfo(className, QString("Password : %0").arg(password));
             ShowInfo(className, QString("Port : %0").arg(port));
+            ShowInfo(className, QString("Key size : %0").arg(keySize));
+            ShowInfo(className, QString("Code size : %0").arg(codeSize));
+            ShowInfo(className, QString("Char format : %0").arg((charset == UTF8) ? "UTF-8" : "UTF-16"));
             ShowInfo(className, QString("Online : %0").arg(server->IsOnline(GlobalServer::Admin) ? "TRUE" : "FALSE"));
             ShowInfo(className,"----------------------------------------------------------------");
         }
@@ -61,11 +73,23 @@ Interface::Interface(bool &exit)
         req.next();
         int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
 
-        qDebug() << "RUN SERVER : "<< server->RunServer(type,GlobalServer::User,port,password,QStringList());
+        int keySize, codeSize, charset = -1;
+        req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
+        if(req.next()) {
+            keySize = req.value("Value1").toInt();
+            codeSize = req.value("Value2").toInt();
+            charset = req.value("Value3").toInt();
+        }
+        server->SetCrypto(keySize,codeSize,charset);
+        server->RunServer(type,GlobalServer::User,port,password,QStringList());
 
         ShowInfo(className,"--------------------------USER SERVER---------------------------");
+        ShowInfo(className, QString("Type : %0").arg((type == GlobalServer::TCP) ? "TCP" : "WEB"));
         ShowInfo(className, QString("Password : %0").arg(password));
         ShowInfo(className, QString("Port : %0").arg(port));
+        ShowInfo(className, QString("Key size : %0").arg(keySize));
+        ShowInfo(className, QString("Code size : %0").arg(codeSize));
+        ShowInfo(className, QString("Char format : %0").arg((charset == UTF8) ? "UTF-8" : "UTF-16"));
         ShowInfo(className, QString("Online : %0").arg(server->IsOnline(GlobalServer::User) ? "TRUE" : "FALSE"));
         ShowInfo(className,"----------------------------------------------------------------");
 
@@ -78,7 +102,6 @@ Interface::Interface(bool &exit)
             connect(cvOrder,SIGNAL(Info(QString,QString)),this,SLOT(ShowInfo(QString,QString)));
             cvOrder->Init();
         }
-
 
         Test();
 
@@ -141,17 +164,21 @@ void Interface::Init()
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
         id++;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','ActAdminServer','0','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','ActAdminServer','1','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Password','admin','','','')");
         id++;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','0','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebSocket','1','','','')");
         id++;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','0','','','')");
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebAdminSocket','1','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPort','49155','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','WebPassword','user','','','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','UserCrypto','50','4','0','')");
+        id++;
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','AdminCrypto','50','4','0','')");
     }
     req.exec("SELECT * FROM General WHERE Name='log'");
     if(!req.next())
@@ -242,18 +269,6 @@ QString Interface::ReadData(QString data, int level)
                         QFile f(_linkLog);
                         f.open(QIODevice::ReadOnly);
                         QString result = "Config|General;GETLog=" + f.readAll();
-                        /*static qint64 offset = 0;
-                        while(!f.atEnd())
-                        {
-                            
-                        }
-                        f.seek(offset);
-                        f.read();
-                        if(f.atEnd())
-                            _allDataTransmitted = true;
-                        else
-                            _allDataTransmitted = false;
-                        */
                         return result;
                     }
                     //SET
@@ -397,7 +412,19 @@ QString Interface::ReadData(QString data, int level)
                         req.next();
                         return QString("Config|Server;GetWebPassword;WebPassword=" + req.value("Value1").toString());
                     }
-                    //SET
+                    else if(ddata.last().contains("GetAdminCrypto")) {
+                        QSqlQuery req;
+                        req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
+                        if(!req.next()) return "Error";
+                        return QString("Config|Server;GetAdminCrypto=%0;%1;%2").arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
+                    }
+                    else if(ddata.last().contains("GetUserCrypto")) {
+                        QSqlQuery req;
+                        req.exec("SELECT * FROM General WHERE Name='UserCrypto'");
+                        if(!req.next()) return "Error";
+                        return QString("Config|Server;GetUserCrypto=%0;%1;%2").arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
+                    }
+                    //SET                   
                     if(ddata.last().contains("SETPort"))
                     {
                         if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'"))
@@ -437,6 +464,23 @@ QString Interface::ReadData(QString data, int level)
                     else if(ddata.last().contains("SETWebPassword"))
                     {
                         if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'"))
+                            return QString("OK");
+                        else
+                            return QString("Error");
+                    }
+                    else if(ddata.last().contains("SetAdminCrypto")) {
+                        QStringList list = ddata.last().split("=").last().split(";");
+                        if(list.count() != 3) return "Error";
+                        QSqlQuery req;
+                        if(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='AdminCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))))
+                            return QString("OK");
+                        return QString("Error");
+                    }
+                    else if(ddata.last().contains("SetUserCrypto")) {
+                        QStringList list = ddata.last().split("=").last().split(";");
+                        if(list.count() != 3) return "Error";
+                        QSqlQuery req;
+                        if(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='UserCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))))
                             return QString("OK");
                         else
                             return QString("Error");
@@ -546,7 +590,7 @@ QString Interface::ReadData(QString data, int level)
                     }
                     else if(data.contains("GetCPTEnergyThisYear")) {
 
-                    }
+                    }                   
                 }
             }
         }

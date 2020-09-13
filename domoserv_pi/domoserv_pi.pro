@@ -36,10 +36,10 @@ HEADERS += \
     cvorder.h \
     interface.h
 
-unix:!macx: LIBS += -L$$PWD/../build/ -lServerFire
+unix:!macx: LIBS += -L$$PWD/../../ServerFire/Lib -lServerFire
 
-INCLUDEPATH += $$PWD/../build
-DEPENDPATH += $$PWD/../build
+INCLUDEPATH += $$PWD/../../ServerFire/Lib
+DEPENDPATH += $$PWD/../../ServerFire/Lib
 
 unix:!macx: LIBS += -L$$PWD/../../CryptoFire/build-CryptoFire-RPI-Release/ -lCryptoFire
 
