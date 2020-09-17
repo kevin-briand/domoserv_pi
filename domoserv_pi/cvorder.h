@@ -9,7 +9,7 @@
 #include <QtDBus/QtDBus>
 
 #ifndef Q_OS_WIN
-    #include <../../wiringPi/wiringPi/wiringPi.h>
+    #include <../WiringPi/wiringPi/wiringPi.h>
     #define ACT_WIRING_PI
 #endif
 

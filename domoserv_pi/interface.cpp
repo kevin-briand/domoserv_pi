@@ -1,5 +1,4 @@
 #include "interface.h"
-#include "../../ServerFire/src/serverfire.h"
 
 //Version 1.02
 
@@ -118,17 +117,8 @@ Interface::~Interface()
 
 bool Interface::Test()
 {
-#ifdef ACT_WIRING_PI_SPI
-        qDebug() << "INIT WIRINGPI :" << wiringPiSetup();
-        qDebug() << "TEST INIT SPI CHANNEL 0: " << wiringPiSPISetup(0,1000000);
-        unsigned char buffer[100];
-        buffer[0] = 0xFA;
-        qDebug() <<  wiringPiSPIDataRW(0,buffer,100);
-        qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
+#ifdef ACT_WIRING_PI_I2C
 
-        qDebug() << "TEST INIT SPI CHANNEL 1: " << wiringPiSPISetup(1,1000000);
-        qDebug() <<  wiringPiSPIDataRW(1,buffer,100);
-        qDebug() << buffer[0] << buffer[1] << buffer[2] << buffer[3] << buffer[4] << buffer[5];
 #endif
     return true;
 }
@@ -179,13 +169,7 @@ void Interface::Init()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','UserCrypto','50','4','0','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','AdminCrypto','50','4','0','')");
-    }
-    req.exec("SELECT * FROM General WHERE Name='log'");
-    if(!req.next())
-    {
-        req.exec("SELECT MAX(ID) FROM General");
-        req.next();
-        int id = req.value(0).toInt()+1;
+        id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
 
@@ -208,7 +192,7 @@ void Interface::ShowInfo(QString classText, QString text)
     {
         QFile f(_linkLog);
         if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
-            std::cout << "fail to open file 'log'\n";
+            std::cout << "fail to open file 'log', application need to run as admin\n";
         else
             f.write("\n" + result.toLatin1());
         f.close();
@@ -219,7 +203,6 @@ void Interface::ReceiptDataFromServer(QString client, QString data)
 {
     if(data.contains("Reload"))
     {
-        //server->Reload();
         QSqlQuery req;
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
