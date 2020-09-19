@@ -173,7 +173,7 @@ void Interface::Init()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
 
-    _linkLog = "/home/pi/domoserv_pi/data/domoserv_pi.log";
+    _linkLog = "/home/pi/domoserv_pi/domoserv_pi.log";
 
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
