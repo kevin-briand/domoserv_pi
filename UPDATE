@@ -1,5 +1,44 @@
 #!/bin/bash
+GREEN='\033[0;32m########'
+NC='########\033[0m' # No Color
 
-sudo pkill -f domoserv_pi
-git pull origin
-sudo systemctl start domoserv_pi.service
+GIT='sudo git pull origin '
+DEV='master'
+if [ $1 ]; then
+        if [ $1 = '-dev' ]; then
+                DEV='develop'
+        fi
+fi
+GITUPD=$GIT$DEV
+
+echo -e ${GREEN}Stopping Domoserv_pi${NC}
+sudo service domoserv_pi stop
+
+echo -e ${GREEN}Updating Domoserv_pi${NC}
+${GITUPD}
+
+echo -e ${GREEN}Updating CryptoFire${NC}
+cd dep/CryptoFire
+${GITUPD}
+
+echo -e ${GREEN}Updating ServerFire${NC}
+cd ../ServerFire
+${GITUPD}
+
+echo -e ${GREEN}Compiling CryptoFire${NC}
+cd ../../lib
+qmake ../dep/CryptoFire/src/
+make
+
+echo -e ${GREEN}Compiling ServerFire${NC}
+qmake ../dep/ServerFire/src/
+make
+
+echo -e ${GREEN}Compiling Domoserv_pi${NC}
+cd ../build
+qmake ../domoserv_pi/
+make
+cd ..
+
+echo -e ${GREEN}Starting Domoserv_pi${NC}
+sudo service domoserv_pi start
