@@ -173,7 +173,8 @@ void Interface::Init()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
 
-    _linkLog = "/home/pi/domoserv_pi/domoserv_pi.log";
+    QSettings settings("domoserv_pi");
+    _linkLog = settings.value("link").toString().isEmpty() ? settings.value("link").toString() : "/home/pi/domoserv_pi/";
 
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
@@ -190,12 +191,30 @@ void Interface::ShowInfo(QString classText, QString text)
 
     if(_log)
     {
-        QFile f(_linkLog);
+        QFile f(_linkLog + "domoserv_pi.log");
         if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
             std::cout << "fail to open file 'log', application need to run as admin\n";
-        else
+        else {
             f.write("\n" + result.toLatin1());
+            f.seek(0);
+            QTextStream str(&f);
+            QStringList v = str.readAll().split("\n");
+            if(v.count() > 150) {
+                while(v.count() > 150) {
+                    v.removeFirst();
+                }
+            }
+        }
         f.close();
+
+        if(classText == "Server") {
+            QFile f(_linkLog + "server.log");
+            if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
+                std::cout << "fail to open file 'log', application need to run as admin\n";
+            else {
+                f.write("\n" + result.toLatin1());
+            }
+        }
     }
 }
 
