@@ -43,7 +43,6 @@ echo -e ${GREEN}Compiling Domoserv_pi${NC}
 cd ../build
 qmake ../domoserv_pi/
 make
-mv domoserv_pi2 domoserv_pi
 cd ..
 
 # creating deamon

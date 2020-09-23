@@ -9,7 +9,7 @@ CONFIG += c++11
 unix:LIBS += -L/Home/kevin/raspi/sysroot/usr/lib -lwiringPi
 unix:INCLUDEPATH += /Home/kevin/raspi/sysroot/usr/lib
 
-TARGET = domoserv_pi2
+TARGET = domoserv_pi
 CONFIG += console
 CONFIG -= app_bundle
 
