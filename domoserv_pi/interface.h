@@ -10,7 +10,7 @@
 #include <QFile>
 #include <QDesktopServices>
 #include <configure.h>
-#include "../ServerFire/src/serverfire.h"
+#include "../dep/ServerFire/src/serverfire.h"
 
 #define className "General"
 

@@ -11,7 +11,7 @@
 #include <QHostAddress>
 #include <QWebSocket>
 #include <cvorder.h>
-#include <../WiringPi/wiringPi/wiringPi.h>
+#include <../dep/WiringPi/wiringPi/wiringPi.h>
 
 #define GREEN "\033[0;32m"
 #define RED "\033[0;31m"
