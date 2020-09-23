@@ -36,12 +36,12 @@ HEADERS += \
     cvorder.h \
     interface.h
 
-unix:!macx: LIBS += -L$$PWD/../qt5pi/lib -lServerFire
+unix:!macx: LIBS += -L$$PWD/../lib -lServerFire
 
-INCLUDEPATH += $$PWD/../qt5pi/lib
-DEPENDPATH += $$PWD/../qt5pi/lib
+INCLUDEPATH += $$PWD/../lib
+DEPENDPATH += $$PWD/../lib
 
-unix:!macx: LIBS += -L$$PWD/../qt5pi/lib -lCryptoFire
+unix:!macx: LIBS += -L$$PWD/../lib -lCryptoFire
 
-INCLUDEPATH += $$PWD/../qt5pi/lib
-DEPENDPATH += $$PWD/../qt5pi/lib
+INCLUDEPATH += $$PWD/../lib
+DEPENDPATH += $$PWD/../lib

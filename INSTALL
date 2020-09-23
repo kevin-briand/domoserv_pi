@@ -1,32 +1,53 @@
 #!/bin/bash
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+GREEN='\033[0;32m########'
+NC='########\033[0m' # No Color
 
-echo -e ${GREEN}-----Install Domoserv_pi-----${NC}
+echo -e ${GREEN}Installing Domoserv_pi${NC}
 
-# copy files to usr/local
-if ! test -d /usr/local/qt5pi; then
-echo -e ${GREEN}copie qt5pi to /usr/local${NC}
-sudo mkdir /usr/local/qt5pi/
-sudo cp -r qt5pi /usr/local
-echo -e ${GREEN}Création des liens symbolique${NC}
-sudo ln -s /usr/local/qt5pi/lib/libwiringPi.so.2.46 /usr/local/qt5pi/lib/libwiringPi.so
-sudo ln -s /usr/local/qt5pi/lib/libQt5Gui.so.5.7.1 /usr/local/qt5pi/lib/libQt5Gui.so.5
-sudo ln -s /usr/local/qt5pi/lib/libQt5WebSockets.so.5.7.1 /usr/local/qt5pi/lib/libQt5WebSockets.so.5
-sudo ln -s /usr/local/qt5pi/lib/libQt5Network.so.5.7.1 /usr/local/qt5pi/lib/libQt5Network.so.5
-sudo ln -s /usr/local/qt5pi/lib/libQt5Sql.so.5.7.1 /usr/local/qt5pi/lib/libQt5Sql.so.5
-sudo ln -s /usr/local/qt5pi/lib/libQt5Core.so.5.7.1 /usr/local/qt5pi/lib/libQt5Core.so.5
-sudo ln -s /usr/local/qt5pi/lib/libGLESv2.so /usr/local/qt5pi/lib/libGLESv2.so.2
-sudo ln -s /usr/local/qt5pi/lib/libharfbuzz.so.0.10400.2 /usr/local/qt5pi/lib/libharfbuzz.so.0
-sudo ln -s /usr/local/qt5pi/lib/libEGL.so /usr/local/qt5pi/lib/libEGL.so.1
-sudo ln -s /usr/local/qt5pi/lib/libpcre16.so.3.13.3 /usr/local/qt5pi/lib/libpcre16.so.3
-sudo ln -s /usr/local/qt5pi/lib/libdouble-conversion.so.1.0 /usr/local/qt5pi/lib/libdouble-conversion.so.1
-sudo ln -s /usr/local/qt5pi/lib/libgraphite2.so.3.0.1 /usr/local/qt5pi/lib/libgraphite2.so.3
-sudo chmod +x build/domoserv_pi
-sudo chmod +x UPDATE
-fi
+echo -e ${GREEN}Installing qt5${NC}
+sudo apt-get install qt5-default libqt5websockets5-dev libqt5sql5-sqlite -y
 
-# create deamon
+mkdir qt5pi
+mkdir qt5pi/lib
+mkdir dep
+cd dep
+
+echo -e ${GREEN}Cloning WiringPi${NC}
+git clone https://github.com/WiringPi/WiringPi.git
+
+echo -e ${GREEN}Cloning CryptoFire${NC}
+git clone https://github.com/firedream89/CryptoFire.git
+
+echo -e ${GREEN}Cloning ServerFire${NC}
+git clone https://github.com/firedream89/ServerFire.git
+
+echo -e ${GREEN}Compiling WiringPi${NC}
+cd WiringPi
+sudo ./build
+cd ..
+
+echo -e ${GREEN}Compiling CryptoFire${NC}
+cd ../qt5pi/lib
+qmake ../../dep/CryptoFire/src/
+make
+
+echo -e ${GREEN}Compiling ServerFire${NC}
+qmake ../../dep/ServerFire/src/
+make
+
+echo -e ${GREEN}Updating librarys path${NC}
+sudo cp -r ../../qt5pi /usr/local/
+echo /usr/local/qt5pi/lib | sudo tee /etc/ld.so.conf.d/qt5pi.conf
+sudo ldconfig
+
+echo -e ${GREEN}Compiling Domoserv_pi${NC}
+cd ../../build
+qmake ../domoserv_pi/
+make
+mv domoserv_pi2 domoserv_pi
+cd ..
+
+# creating deamon
 echo -e ${GREEN}install deamon${NC}
 sudo cp domoserv_pi.service /lib/systemd/system/domoserv_pi.service
 sudo chmod 644 /lib/systemd/system/domoserv_pi.service
