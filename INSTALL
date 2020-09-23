@@ -7,8 +7,7 @@ echo -e ${GREEN}Installing Domoserv_pi${NC}
 echo -e ${GREEN}Installing qt5${NC}
 sudo apt-get install qt5-default libqt5websockets5-dev libqt5sql5-sqlite -y
 
-mkdir qt5pi
-mkdir qt5pi/lib
+mkdir lib
 mkdir dep
 cd dep
 
@@ -27,21 +26,21 @@ sudo ./build
 cd ..
 
 echo -e ${GREEN}Compiling CryptoFire${NC}
-cd ../qt5pi/lib
-qmake ../../dep/CryptoFire/src/
+cd ../lib
+qmake ../dep/CryptoFire/src/
 make
 
 echo -e ${GREEN}Compiling ServerFire${NC}
-qmake ../../dep/ServerFire/src/
+qmake ../dep/ServerFire/src/
 make
 
 echo -e ${GREEN}Updating librarys path${NC}
-sudo cp -r ../../qt5pi /usr/local/
-echo /usr/local/qt5pi/lib | sudo tee /etc/ld.so.conf.d/qt5pi.conf
+sudo cp -r ../lib /usr/local/
+echo /usr/local/lib | sudo tee /etc/ld.so.conf.d/lib.conf
 sudo ldconfig
 
 echo -e ${GREEN}Compiling Domoserv_pi${NC}
-cd ../../build
+cd ../build
 qmake ../domoserv_pi/
 make
 mv domoserv_pi2 domoserv_pi
