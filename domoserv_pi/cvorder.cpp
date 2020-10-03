@@ -27,7 +27,7 @@ void CVOrder::Reload()
 
     Init();
 }
-/*
+
 CVOrder::~CVOrder()
 {
     _timerZ1->stop();
@@ -40,7 +40,7 @@ CVOrder::~CVOrder()
     _abs->deleteLater();
     _timerReadInput->stop();
     _timerReadInput->deleteLater();
-}*/
+}
 
 void CVOrder::Init()
 {
@@ -192,8 +192,11 @@ void CVOrder::RunChangeOrder()
         if(_timerZ2 == t)
             zone = Z2;
 
+        //Récupération appartenance timer
         int state = t->property("state").toInt();
+        //Changement de l'état
         ChangeOrder(state,zone);
+        //Redémarrage timer
         NextProgram(zone);
     }
     else//---------------------------
@@ -631,7 +634,7 @@ QString CVOrder::GetProg()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
     while(req.next())
-        result += ";" + req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
+        result += req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
     return result;
 }
 
@@ -643,7 +646,7 @@ QString CVOrder::GetConfig()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Priority'");
     req.next();
-    QString result = ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+    QString result = req.value("Name").toString() + "=" + req.value("Value1").toString();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
     req.next();

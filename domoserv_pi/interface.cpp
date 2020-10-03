@@ -2,6 +2,33 @@
 
 //Version 1.02
 
+//Admin
+QString GetCVOrder("Config|General;CVOrder=%0");
+QString GetLog("Config|General;GETLog=%0");
+QString GetProg("Config|CVOrder;GETProg;%0");
+QString GetConfig("Config|CVOrder;GETConfig;%0");
+QString GetGPIO("Config|CVOrder;GPIO;");
+QString GetAdminPort("Config|Server;GETPort;Port=%0");
+QString GetAdminPassword("Config|Server;GetPassword;Password=%0");
+QString GetAdminType("Config|Server;GETAdminSocket;AdminSocket=%0");
+QString GetUserType("Config|Server;GETUserSocket;UserSocket=%0");
+QString GetUserPort("Config|Server;GETWebPort;WebPort=%0");
+QString GetUserPassword("Config|Server;GetWebPassword;WebPassword=%0");
+QString GetAdminCrypto("Config|Server;GetAdminCrypto=%0;%1;%2");
+QString GetUserCrypto("Config|Server;GetUserCrypto=%0;%1;%2");
+
+//User
+QString GetZOrder("CVOrder|GetZ%0Order=%1");
+QString GetZStatus("CVOrder|GetZ%0Status=%1");
+QString GetABS("CVOrder|GetABS=%0");
+QString GetRemainingTimeZ("CVOrder|GetRemainingTimeZ%0=%1");
+QString GetRemainingTimeABS("CVOrder|GetRemainingTimeABS=%1");
+QString GetHistoryCPTEnergy("CVOrder|GetDataCPTEnergy=%0");
+QString GetHistoryOrder("CVOrder|GetDataOrder=%0");
+QString GetHistoryTemp("CVOrder|GetDataTemp=%0");
+QString GetTemp("CVOrder|GetTemp;%0=%1");
+QString Reload("CVOrder|Reload");
+
 Interface::Interface(bool &exit)
 {
     //ARG
@@ -18,8 +45,6 @@ Interface::Interface(bool &exit)
     else
     {
         Init();
-
-
 
         server = new ServerFire(this);
         connect(server,&ServerFire::Info,this,&Interface::ShowInfo);
@@ -93,6 +118,7 @@ Interface::Interface(bool &exit)
         ShowInfo(className,"----------------------------------------------------------------");
 
 
+        //Gestionnaire chauffage
         cvOrder = new CVOrder;
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
@@ -107,13 +133,12 @@ Interface::Interface(bool &exit)
         connect(&_update,&QTimer::timeout,this,&Interface::StartUpdate);
     }
 }
-/*
+
 Interface::~Interface()
 {
     server->deleteLater();
     cvOrder->deleteLater();
-    QFile::remove(_linkLog);
-}*/
+}
 
 bool Interface::Test()
 {
@@ -132,6 +157,10 @@ void Interface::StartUpdate()
 
 void Interface::Init()
 {
+    QSettings settings("domoserv_pi");
+    _linkLog = settings.value("link").toString().isEmpty() ? settings.value("link").toString() : "/home/pi/domoserv_pi/";
+
+
     //Init Database Config
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(qApp->applicationDirPath() + "/bdd.db");
@@ -150,7 +179,7 @@ void Interface::Init()
         req.exec("SELECT MAX(ID) FROM General");
         req.next();
         int id = req.value(0).toInt()+1;
-        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','0','','','')"); 
+        req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','CVOrder','1','','','')");
         id++;
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','Port','49152','','','')");
         id++;
@@ -173,8 +202,6 @@ void Interface::Init()
         req.exec("INSERT INTO General VALUES('" + QString::number(id) + "','log','1','','','')");
     }
 
-    _linkLog = "/home/pi/domoserv_pi/domoserv_pi.log";
-
     req.exec("SELECT Value1 FROM General WHERE Name='log'");
     req.next();
     if(req.value(0).toBool())
@@ -185,17 +212,35 @@ void Interface::Init()
 
 void Interface::ShowInfo(QString classText, QString text)
 {
-    QString result = QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm:ss") + " " + classText + "\t" + text + "\n";
+    QString result = QDateTime::currentDateTime().toString("dd-MM-yyyy hh:mm:ss %1\t%2\n").arg(classText).arg(text);
     std::cout << result.toStdString();
 
     if(_log)
     {
-        QFile f(_linkLog);
+        QFile f(_linkLog + "domoserv_pi.log");
         if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
             std::cout << "fail to open file 'log', application need to run as admin\n";
-        else
+        else {
             f.write("\n" + result.toLatin1());
+            f.seek(0);
+            QTextStream str(&f);
+            QStringList v = str.readAll().split("\n");
+            if(v.count() > 150) {
+                while(v.count() > 150) {
+                    v.removeFirst();
+                }
+            }
+        }
         f.close();
+
+        if(classText == "Server") {
+            QFile f(_linkLog + "server.log");
+            if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
+                std::cout << "fail to open file 'log', application need to run as admin\n";
+            else {
+                f.write("\n" + result.toLatin1());
+            }
+        }
     }
 }
 
@@ -244,15 +289,13 @@ QString Interface::ReadData(QString data, int level)
                     {//Format : Config|General;GETCVOrder
                         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
                         req.next();
-                        QString result = "Config|General;CVOrder=" + req.value("Value1").toString();
-                        return result;
+                        return GetCVOrder.arg(req.value("Value1").toInt());
                     }
                     if(ddata.last().contains("GETLog"))
                     {//Format : Config|General;GETLog
                         QFile f(_linkLog);
                         f.open(QIODevice::ReadOnly);
-                        QString result = "Config|General;GETLog=" + f.readAll();
-                        return result;
+                        return GetLog.arg(QString(f.readAll()));
                     }
                     //SET
                     if(ddata.last().contains("SETCVOrder"))
@@ -269,21 +312,15 @@ QString Interface::ReadData(QString data, int level)
                     //GET
                     if(ddata.last().contains(";GETProg"))
                     {//Format : Config|CVOrder;GETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
-                        QString result;
-                        result = "Config|CVOrder;GETProg";
-                        result += cvOrder->GetProg();
-                        return result;
+                        return GetProg.arg(cvOrder->GetProg());
                     }
                     else if(ddata.last().contains(";GETConfig"))
                     {//Format : Config|CVOrder;GETConfig;conf1=value1;conf2=value2
-                        QString result;
-                        result = "Config|CVOrder;GETConfig";
-                        result += cvOrder->GetConfig();
-                        return result;
+                        return GetConfig.arg(cvOrder->GetConfig());
                     }
                     else if(ddata.last().contains(";GPIO"))
                     {
-                        QString result = "Config|CVOrder;GPIO;";
+                        QString result;
 
                         result += "Z1Eco=" + QString::number(cvOrder->GetGPIO(Z1Eco)) + ";";
                         result += "Z1HG=" + QString::number(cvOrder->GetGPIO(Z1Hg)) + ";";
@@ -293,7 +330,7 @@ QString Interface::ReadData(QString data, int level)
                         result += "ImpCPTEnergy=" + QString::number(cvOrder->GetGPIO(ImpCPTEnergy)) + ";";
                         result += "HCCPTEnergy=" + QString::number(cvOrder->GetGPIO(HCCPTEnergy));
 
-                        return result;
+                        return GetGPIO + result;
                     }
                     //SET
                     else if(ddata.last().contains(";SETProg"))
@@ -314,22 +351,23 @@ QString Interface::ReadData(QString data, int level)
                     }
                     else if(ddata.last().contains(";SETConfig"))
                     {//Format : Config|CVOrder;SETConfig;Conf1=Value1
-                        if(ddata.last().split(";").last().contains("Priority"))
-                            cvOrder->SetPriority(ddata.last().split(";").last().split("=").last().toInt());
-                        else if(ddata.last().split(";").last().contains("RmIpPing"))
-                            cvOrder->RemoveIp(ddata.last().split(";").last().split("=").last());
-                        else if(ddata.last().split(";").last().contains("AddIpPing"))
-                            cvOrder->AddIp(ddata.last().split(";").last().split("=").last());
-                        else if(ddata.last().split(";").last().contains("timerNetwork"))
-                            cvOrder->SetTimerNetwork(ddata.last().split(";").last().split("=").last().toInt());
-                        else if(ddata.last().split(";").last().contains("ActCPTEnergy"))
-                            cvOrder->UseCPTEnergy(ddata.last().split(";").last().split("=").last().toInt());
-                        else if(ddata.last().split(";").last().contains("ActHCCPTEnergy"))
-                            cvOrder->UseHCCPTEnergy(ddata.last().split(";").last().split("=").last().toInt());
-                        else if(ddata.last().split(";").last().contains("FileCPTEnergy"))
-                            ;//cvOrder->(ddata.last().split(";").last().split("=").last());
-                        else if(ddata.last().split(";").last().contains("ImpWattCPTEnergy"))
-                            cvOrder->SetImpWatt(ddata.last().split(";").last().split("=").last().toInt());
+                        QString var = ddata.last().split(";").last();
+                        if(var.contains("Priority"))
+                            cvOrder->SetPriority(var.split("=").last().toInt());
+                        else if(var.contains("RmIpPing"))
+                            cvOrder->RemoveIp(var.split("=").last());
+                        else if(var.contains("AddIpPing"))
+                            cvOrder->AddIp(var.split("=").last());
+                        else if(var.contains("timerNetwork"))
+                            cvOrder->SetTimerNetwork(var.split("=").last().toInt());
+                        else if(var.contains("ActCPTEnergy"))
+                            cvOrder->UseCPTEnergy(var.split("=").last().toInt());
+                        else if(var.contains("ActHCCPTEnergy"))
+                            cvOrder->UseHCCPTEnergy(var.split("=").last().toInt());
+                        else if(var.contains("FileCPTEnergy"))
+                            ;//cvOrder->(var.split("=").last());
+                        else if(var.contains("ImpWattCPTEnergy"))
+                            cvOrder->SetImpWatt(var.split("=").last().toInt());
                         return QString("OK");
                     }
                     else if(ddata.last().contains(";SETGPIO"))
@@ -363,110 +401,80 @@ QString Interface::ReadData(QString data, int level)
                     {
                         req.exec("SELECT * FROM General WHERE Name='Port'");
                         req.next();
-                        return QString("Config|Server;GETPort;Port=" + req.value("Value1").toString());
+                        return GetAdminPort.arg(req.value("Value1").toString());
                     }
                     else if(ddata.last().contains("GETPassword"))
                     {
                         req.exec("SELECT * FROM General WHERE Name='Password'");
                         req.next();
-                        return QString("Config|Server;GetPassword;Password=" + req.value("Value1").toString());
+                        return GetAdminPassword.arg(req.value("Value1").toString());
                     }
                     else if(ddata.last().contains("GETAdminSocket"))
                     {
                         req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
                         req.next();
-                        return QString("Config|Server;GETAdminSocket;AdminSocket=" + req.value("Value1").toString());
+                        return GetAdminType.arg(req.value("Value1").toString());
                     }
                     else if(ddata.last().contains("GETUserSocket"))
                     {
                         req.exec("SELECT * FROM General WHERE Name='WebSocket'");
                         req.next();
-                        return QString("Config|Server;GETUserSocket;UserSocket=" + req.value("Value1").toString());
+                        return GetUserType.arg(req.value("Value1").toString());
                     }
                     if(ddata.last().contains("GETWebPort"))
                     {
                         req.exec("SELECT * FROM General WHERE Name='WebPort'");
                         req.next();
-                        return QString("Config|Server;GETWebPort;WebPort=" + req.value("Value1").toString());
+                        return GetUserPort.arg(req.value("Value1").toString());
                     }
                     else if(ddata.last().contains("GETWebPassword"))
                     {
                         req.exec("SELECT * FROM General WHERE Name='WebPassword'");
                         req.next();
-                        return QString("Config|Server;GetWebPassword;WebPassword=" + req.value("Value1").toString());
+                        return GetUserPassword.arg(req.value("Value1").toString());
                     }
                     else if(ddata.last().contains("GetAdminCrypto")) {
                         QSqlQuery req;
                         req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
                         if(!req.next()) return "Error";
-                        return QString("Config|Server;GetAdminCrypto=%0;%1;%2").arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
+                        return GetAdminCrypto.arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
                     }
                     else if(ddata.last().contains("GetUserCrypto")) {
                         QSqlQuery req;
                         req.exec("SELECT * FROM General WHERE Name='UserCrypto'");
                         if(!req.next()) return "Error";
-                        return QString("Config|Server;GetUserCrypto=%0;%1;%2").arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
+                        return GetUserCrypto.arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
                     }
                     //SET                   
-                    if(ddata.last().contains("SETPort"))
-                    {
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    if(ddata.last().contains("SETPort")) {
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'"));
                     }
-                    else if(ddata.last().contains("SETPassword"))
-                    {
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    else if(ddata.last().contains("SETPassword")) {
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Password'"));
                     }
-                    else if(ddata.last().contains("SETAdminSocket"))
-                    {
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebAdminSocket'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    else if(ddata.last().contains("SETAdminSocket")) {
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebAdminSocket'"));
                     }
-                    else if(ddata.last().contains("SETUserSocket"))
-                    {
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    else if(ddata.last().contains("SETUserSocket")) {
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last() + "' WHERE Name='WebSocket'"));
                     }
-                    if(ddata.last().contains("SETWebPort"))
-                    {
-                        ShowInfo(className,"Set WebPort = " + ddata.last().split("=").last());
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    if(ddata.last().contains("SETWebPort")) {
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPort'"));
                     }
-                    else if(ddata.last().contains("SETWebPassword"))
-                    {
-                        if(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'"))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                    else if(ddata.last().contains("SETWebPassword")){
+                        return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='WebPassword'"));
                     }
                     else if(ddata.last().contains("SetAdminCrypto")) {
                         QStringList list = ddata.last().split("=").last().split(";");
                         if(list.count() != 3) return "Error";
                         QSqlQuery req;
-                        if(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='AdminCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))))
-                            return QString("OK");
-                        return QString("Error");
+                        return isError(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='AdminCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))));
                     }
                     else if(ddata.last().contains("SetUserCrypto")) {
                         QStringList list = ddata.last().split("=").last().split(";");
                         if(list.count() != 3) return "Error";
                         QSqlQuery req;
-                        if(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='UserCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))))
-                            return QString("OK");
-                        else
-                            return QString("Error");
+                        return isError(req.exec(QString("UPDATE General SET Value1='%0', Value2='%1', Value3='%2' WHERE Name='UserCrypto'").arg(list.at(0)).arg(list.at(1)).arg(list.at(2))));
                     }
                 }
             }
@@ -476,44 +484,43 @@ QString Interface::ReadData(QString data, int level)
     {
         if(data.contains("|")) {
             if(data.contains("CVOrder")) {
-                QString first("CVOrder|");
                 if(data.contains("=")) {//Set
                     if(data.contains("SetZ1Order")) {
                         cvOrder->SetOrder(data.split("=").last().toInt(),Z1);
-                        return first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1));
+                        return GetZOrder.arg(1).arg(cvOrder->GetOrder(Z1));
                     }
                     else if(data.contains("SetZ2Order")) {
                         cvOrder->SetOrder(data.split("=").last().toInt(),Z2);
-                        return first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2));
+                        return GetZOrder.arg(2).arg(cvOrder->GetOrder(Z2));
                     }
                     else if(data.contains("SetZ1Status")) {
                         cvOrder->SetStatus(data.split("=").last().toInt(),Z1);
-                        return first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1));
+                        return GetZStatus.arg(1).arg(cvOrder->GetStatus(Z1));
                     }
                     else if(data.contains("SetZ2Status")) {
                         cvOrder->SetStatus(data.split("=").last().toInt(),Z2);
-                        return first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2));
+                        return GetZStatus.arg(2).arg(cvOrder->GetStatus(Z2));
                     }
                     else if(data.contains("ABS")) {
                         cvOrder->ABS(data.split("=").last().toInt());
-                        return first + "Reload";
+                        return Reload;
                     }
                 }
                 else {//Get
                     if(data.contains("GetZ1Order")) {
-                        return first + "GetZ1Order=" + QString::number(cvOrder->GetOrder(Z1));
+                        return GetZOrder.arg(1).arg(cvOrder->GetOrder(Z1));
                     }
                     else if(data.contains("GetZ2Order")) {
-                        return first + "GetZ2Order=" + QString::number(cvOrder->GetOrder(Z2));
+                        return GetZOrder.arg(2).arg(cvOrder->GetOrder(Z2));
                     }
                     else if(data.contains("GetZ1Status")) {
-                        return first + "GetZ1Status=" + QString::number(cvOrder->GetStatus(Z1));
+                        return GetZStatus.arg(1).arg(cvOrder->GetStatus(Z1));
                     }
                     else if(data.contains("GetZ2Status")) {
-                        return first + "GetZ2Status=" + QString::number(cvOrder->GetStatus(Z2));
+                        return GetZStatus.arg(2).arg(cvOrder->GetStatus(Z2));
                     }
                     else if(data.contains("GetABS")) {
-                        return first + "GetABS=" + QString::number(cvOrder->GetABS());
+                        return GetABS.arg(cvOrder->GetABS());
                     }
                     else if(data.contains("GetRemainingTimeZ1")) {
                         int value = 0;
@@ -523,7 +530,7 @@ QString Interface::ReadData(QString data, int level)
                         else {
                             value = cvOrder->GetRemainingTime(Z1);
                         }
-                        return first + "GetRemainingTimeZ1=" + QString::number(value);
+                        return GetRemainingTimeZ.arg(1).arg(value);
                     }
                     else if(data.contains("GetRemainingTimeZ2")) {
                         int value = 0;
@@ -533,13 +540,10 @@ QString Interface::ReadData(QString data, int level)
                         else {
                             value = cvOrder->GetRemainingTime(Z2);
                         }
-                        return first + "GetRemainingTimeZ2=" + QString::number(value);
+                        return GetRemainingTimeZ.arg(2).arg(value);
                     }
                     else if(data.contains("GetRemainingTimeABS")) {
-                        return first + "GetRemainingTimeABS=" + QString::number(cvOrder->GetRemainingTime(frostFree));
-                    }
-                    else if(data.contains("GetLog")) {
-                        return first + "GetLog=" + cvOrder->GetLog();
+                        return GetRemainingTimeABS.arg(cvOrder->GetRemainingTime(frostFree));
                     }
                     else if(data.contains("GetDataCPTEnergy")  || data.contains("GetDataOrder") || data.contains("GetDataTemp")) {
                         QStringList listDate = data.split(";;").last().split(":");
@@ -553,19 +557,19 @@ QString Interface::ReadData(QString data, int level)
                         QDate f(endDate.at(0).toInt(),endDate.at(1).toInt(),endDate.at(2).toInt());
 
                         if(data.contains("GetDataCPTEnergy")) {
-                            return data + "=" + cvOrder->GetDataCPTEnergy(d,f);
+                            return GetHistoryCPTEnergy.arg(cvOrder->GetDataCPTEnergy(d,f));
                         }
                         else if(data.contains("GetDataOrder")) {
-                            return first + "GetDataOrder=" + cvOrder->GetDataOrder(d,f);
+                            return GetHistoryOrder.arg(cvOrder->GetDataOrder(d,f));
                         }
                         else {
-                            return first + "GetDataTemp=" + cvOrder->GetDataTemp(d,f);
+                            return GetHistoryTemp.arg(cvOrder->GetDataTemp(d,f));
                         }
                     }
                     else if(data.contains("GetTemp")) {
                         if(data.split(";").count() == 2) {
                             int emp = data.split(";").last().toInt();
-                            return first + "GetTemp;" + QString::number(emp) + "=" + cvOrder->GetTemp(emp);
+                            return GetTemp.arg(emp).arg(cvOrder->GetTemp(emp));
                         }
                         else {
                             return QString("Error");
