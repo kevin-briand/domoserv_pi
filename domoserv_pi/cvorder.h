@@ -56,7 +56,7 @@ class CVOrder : public QObject
     Q_OBJECT
 public:
     CVOrder();
-    //~CVOrder();
+    ~CVOrder();
     void Init();
     void InitProg();
     void RemoveProg(int zone, QString date = nullptr);
