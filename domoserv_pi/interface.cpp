@@ -158,7 +158,7 @@ void Interface::StartUpdate()
 void Interface::Init()
 {
     QSettings settings("domoserv_pi");
-    _linkLog = settings.value("link").toString().isEmpty() ? settings.value("link").toString() : "/home/pi/domoserv_pi/";
+    _linkLog = settings.value("link").toString().isEmpty() ? "/home/pi/domoserv_pi/" : settings.value("link").toString();
 
 
     //Init Database Config
@@ -445,7 +445,7 @@ QString Interface::ReadData(QString data, int level)
                         if(!req.next()) return "Error";
                         return GetUserCrypto.arg(req.value("Value1").toInt()).arg(req.value("Value2").toInt()).arg(req.value("Value3").toInt());
                     }
-                    //SET                   
+                    //SET
                     if(ddata.last().contains("SETPort")) {
                         return isError(req.exec("UPDATE General SET Value1='" + ddata.last().split("=").last()+ "' WHERE Name='Port'"));
                     }
@@ -577,7 +577,7 @@ QString Interface::ReadData(QString data, int level)
                     }
                     else if(data.contains("GetCPTEnergyThisYear")) {
 
-                    }                   
+                    }
                 }
             }
         }
