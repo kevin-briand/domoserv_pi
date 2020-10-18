@@ -48,6 +48,7 @@ private:
     int DaytoInt(QString day);
     QString DaytoString(int day);
     int inChoice(int min, int max);
+    int Question(QStringList Options, int max);
 
 };
 

@@ -30,12 +30,13 @@ Configure::Configure()
 
 void Configure::GeneralMenu()
 {
-    cout << "1 - Etat serveur" << endl;
-    cout << "2 - Configuration" << endl;
-    cout << "3 - Test" << endl;
-    cout << "4 - Quitter" << endl;
+    QStringList list;
+    list.append("Etat serveur");
+    list.append("Configuration");
+    list.append("Test");
+    list.append("Quitter");
 
-    int result = inChoice(1,4);
+    int result = Question(list,4);
 
     switch (result) {
     case 1:
@@ -261,19 +262,13 @@ void Configure::ConfigMenu()
 {
     cout << "Configuration :" << endl;
 
-    cout << "1 - Général" << endl;
-    cout << "2 - Gestionnaire chauffage" << endl;
-    cout << "3 - Serveur" << endl;
-    cout << "4 - Retour" << endl;
+    QStringList list;
+    list.append("Général");
+    list.append("Gestionnaire chauffage");
+    list.append("Serveur");
+    list.append("Retour");
 
-    int result = 0;
-
-    while(result < 1 || result > 4)
-    {
-        cout << "Choix : ";
-        cin >> result;
-        cout << endl;
-    }
+    int result = Question(list,4);
 
     switch (result) {
     case 1:
@@ -304,10 +299,11 @@ void Configure::ConfigGeneralMenu()
     else
         state = QString(RED) + "Inactif" + QString(NOCOLOR);
 
-    cout << "1 - Gestionnaire chauffage " << state.toStdString() << endl;
-    cout << "2 - Retour" << endl;
+    QStringList list;
+    list.append("Gestionnaire chauffage " + state);
+    list.append("Retour");
 
-    int result = inChoice(1,2);
+    int result = Question(list,2);
 
     QString value = "1";
     switch (result) {
@@ -918,52 +914,53 @@ void Configure::ConfigServerMenu()
 
     req.exec("SELECT * FROM General WHERE Name='ActAdminServer'");
     req.next();
-    QString value = QString(RED) + "Inactif" + QString(NOCOLOR);
+    QString actAdminServer = QString(RED) + "Inactif" + QString(NOCOLOR);
     if(req.value("Value1").toBool())
-        value = QString(GREEN) + "Actif" + QString(NOCOLOR);
-    cout << "1 - Serveur admin : " << value.toStdString() << endl;
+        actAdminServer = QString(GREEN) + "Actif" + QString(NOCOLOR);
 
     req.exec("SELECT * FROM General WHERE Name='WebAdminSocket'");
     req.next();
-    value = "TCP";
+    QString adminType = "TCP";
     if(req.value("Value1").toBool())
-        value = "WebSocket";
-    cout << "2 - Changer type serveur admin : " << value.toStdString() << endl;
+        adminType = "WebSocket";
 
     req.exec("SELECT * FROM General WHERE Name='Port'");
     req.next();
-    cout << "3 - Changer port serveur admin : " << req.value("Value1").toString().toStdString() << endl;
+    int adminPort = req.value("Value1").toInt();
 
     req.exec("SELECT * FROM General WHERE Name='Password'");
     req.next();
-    cout << "4 - Changer mot de passe admin : " << req.value("Value1").toString().toStdString() << endl;
+    QString adminPassword = req.value("Value1").toString();
 
     req.exec("SELECT * FROM General WHERE Name='WebSocket'");
         req.next();
-        value = "TCP";
+        QString userType = "TCP";
         if(req.value("Value1").toBool())
-            value = "WebSocket";
-    cout << "5 - Changer type serveur utilisateur : " << value.toStdString() << endl;
+            userType = "WebSocket";
 
     req.exec("SELECT * FROM General WHERE Name='WebPort'");
     req.next();
-    cout << "6 - Changer port serveur utilisateur : " << req.value("Value1").toString().toStdString() << endl;
+    QString userPort = req.value("Value1").toString();
 
     req.exec("SELECT * FROM General WHERE Name='WebPassword'");
     req.next();
-    cout << "7 - Changer mot de passe utilisateur : " << req.value("Value1").toString().toStdString() << endl;
-    cout << "8 - Retour" << endl;
+    QString userPassword = req.value("Value1").toString();
 
-    int result = 0;
+    QStringList list;
+    list.append("Serveur admin : " + actAdminServer);
+    list.append("Changer type serveur admin : " + adminType);
+    list.append("Changer port serveur admin : " + QString::number(adminPort));
+    list.append("Changer mot de passe admin : " + adminPassword);
+    list.append("Changer type serveur utilisateur : " + userType);
+    list.append("Changer port serveur utilisateur : " + userPort);
+    list.append("Changer mot de passe utilisateur : " + userPassword);
+    list.append("Retour");
 
-    while(result < 1 || result > 8)
-    {
-        cout << "Choix : ";
-        cin >> result;
-        cout << endl;
-    }
+    int result = Question(list,8);
+
     int p;
     string v;
+    QString value;
     switch (result) {
     case 1:
         req.exec("SELECT * FROM General WHERE Name='ActAdminServer'");
@@ -1028,5 +1025,19 @@ void Configure::ConfigServerMenu()
         break;
     case 8:
         ConfigMenu();
+    }
+}
+
+int Configure::Question(QStringList options, int max)
+{
+    for(int i = 0;i < options.count();i++) {
+        cout << i+1 << " - " << options.at(i).toStdString() << "\n";
+    }
+    int result = -1;
+    while(result < 1 || result > max)
+    {
+        cout << "Choix : ";
+        cin >> result;
+        cout << endl;
     }
 }

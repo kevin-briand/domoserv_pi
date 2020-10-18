@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <interface.h>
+#include <configure.h>
 #include <iostream>
 
 int main(int argc, char *argv[])
@@ -13,9 +14,17 @@ int main(int argc, char *argv[])
     printf("|                                          |\n");
     printf("--------------------------------------------\n");
 
-    bool exit = false;
-    Interface interface(exit);
+    //ARG
+    bool srv = false;
+    for(int i=0;i<qApp->arguments().count();i++)
+        if(qApp->arguments().at(i) == "-server")
+            srv = true;
 
-    if(!exit)
-        return a.exec();
+    bool exit = false;
+    if(srv)
+        Interface interface(exit);
+    else
+        Configure conf;
+
+    return a.exec();
 }
