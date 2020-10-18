@@ -1040,4 +1040,5 @@ int Configure::Question(QStringList options, int max)
         cin >> result;
         cout << endl;
     }
+    return result;
 }

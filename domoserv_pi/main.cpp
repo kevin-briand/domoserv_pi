@@ -23,8 +23,10 @@ int main(int argc, char *argv[])
     bool exit = false;
     if(srv)
         Interface interface(exit);
-    else
+    else {
         Configure conf;
+        a.exit();
+    }
 
     return a.exec();
 }
