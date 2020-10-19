@@ -50,7 +50,8 @@ void Configure::GenerateConfigFile()
         if(name == "CVorder") result = QString("Chauffage Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
         else if(name == "log") result = QString("Log Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
 
-        str << result << endl;
+        if(!result.isEmpty())
+            str << result << endl;
     }
 
     str << endl << "{SERVEUR}" << endl;
@@ -70,7 +71,8 @@ void Configure::GenerateConfigFile()
         else if(name == "UserCrypto") result = QString("Admin Crypto= Taille clé=%0 Taille code=%1 Type=%2").arg(req.value("Value1").toInt())
                 .arg(req.value("Value2").toInt()).arg(req.value("Value3").toBool() ? "UTF8" : "UTF16");
 
-        str << result << endl;
+        if(!result.isEmpty())
+            str << result << endl;
     }
 
     str << endl << "{CHAUFFAGE}" << endl;
@@ -94,7 +96,8 @@ void Configure::GenerateConfigFile()
         else if(name == "Prog") result = QString("Prog= Jour=%0 Heure=%1 Etat=%2").arg(req.value("Value1").toString()).arg(req.value("Value2").toString()).
                 arg(req.value("Value3").toBool() ? "Eco" : "Confort");
 
-        str << result << endl;
+        if(result.isEmpty())
+            str << result << endl;
     }
 
     //Enregistré

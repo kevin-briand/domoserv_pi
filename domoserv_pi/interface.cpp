@@ -168,7 +168,7 @@ void Interface::Init()
 
     if(!db.open())
         ShowInfo(className,"[\033[0;31mFAILED\033[0m] Database not started");
-    else
+    elselib
         ShowInfo(className,"[\033[0;32m  OK  \033[0m] Database open ");
 
     QSqlQuery req;
