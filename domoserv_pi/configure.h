@@ -35,6 +35,7 @@ private:
     QWebSocket webSocket;
     quint16 dataSize;
     QString _dataResult;
+    void GenerateConfigFile();
     void GeneralMenu();
     void StateMenu();
     void ConfigMenu();

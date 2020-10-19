@@ -25,7 +25,112 @@ Configure::Configure()
         return;
     }
 
-    GeneralMenu();
+    //GeneralMenu();
+    GenerateConfigFile();
+}
+
+void Configure::GenerateConfigFile()
+{
+    cout << "Generate config file...";
+
+    QFile f("Config.txt");
+    f.remove();
+    if(!f.open(QIODevice::WriteOnly)) {
+        cout << "Error : file not open !";
+        return;
+    }
+    QTextStream str(&f);
+    QSqlQuery req;
+
+    str << "{GENERAL}" << endl;
+    req.exec("SELECT * FROM General");
+    while(req.next()) {
+        QString name = req.value("Name").toString();
+        QString result;
+        if(name == "CVorder") result = QString("Chauffage Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "log") result = QString("Log Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+
+        str << result << endl;
+    }
+
+    str << endl << "{SERVEUR}" << endl;
+    req.exec("SELECT * FROM General");
+    while(req.next()) {
+        QString name = req.value("Name").toString();
+        QString result;
+        if(name == "ActAdminServer") result = QString("Admin Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "WebAdminSocket") result = QString("Admin WebSocket=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "WebSocket") result = QString("User WebSocket=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "Port") result = QString("Admin Port=%0").arg(req.value("Value1").toInt());
+        else if(name == "WebPort") result = QString("User Port=%0").arg(req.value("Value1").toInt());
+        else if(name == "Password") result = QString("Admin Password=%0").arg(req.value("Value1").toString());
+        else if(name == "WebPassword") result = QString("User Password=%0").arg(req.value("Value1").toString());
+        else if(name == "AdminCrypto") result = QString("Admin Crypto= Taille clé=%0 Taille code=%1 Type=%2").arg(req.value("Value1").toInt())
+                .arg(req.value("Value2").toInt()).arg(req.value("Value3").toBool() ? "UTF8" : "UTF16");
+        else if(name == "UserCrypto") result = QString("Admin Crypto= Taille clé=%0 Taille code=%1 Type=%2").arg(req.value("Value1").toInt())
+                .arg(req.value("Value2").toInt()).arg(req.value("Value3").toBool() ? "UTF8" : "UTF16");
+
+        str << result << endl;
+    }
+
+    str << endl << "{CHAUFFAGE}" << endl;
+    req.exec("SELECT * FROM CVOrder");
+    while(req.next()) {
+        QString name = req.value("Name").toString();
+        QString result;
+        if(name == "Priority") result = QString("Priorité=%0").arg(req.value("Value1").toInt());
+        else if(name == "Act_Network") result = QString("Interval ping=%0").arg(req.value("Value1").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 0) result = QString("GPIO Zone1 Eco=%0").arg(req.value("Value2").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 1) result = QString("GPIO Zone1 HorsGel=%0").arg(req.value("Value2").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 2) result = QString("GPIO Zone2 Eco=%0").arg(req.value("Value2").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 3) result = QString("GPIO Zone2 HorsGel=%0").arg(req.value("Value2").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 4) result = QString("GPIO Inverser On/Off=%0").arg(req.value("Value2").toBool() ? "TRUE" : "FALSE");
+        else if(name == "GPIO" && req.value("Value1").toInt() == 5) result = QString("GPIO Impulsion Compteur=%0").arg(req.value("Value2").toInt());
+        else if(name == "GPIO" && req.value("Value1").toInt() == 6) result = QString("GPIO Heures creuses=%0").arg(req.value("Value2").toInt());
+        else if(name == "ActCPTEnergy") result = QString("Compteur Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "ActHCCPTEnergy") result = QString("Heures creuses Actif=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE");
+        else if(name == "ImpWattCPTEnergy") result = QString("Wh/impulsion=%0").arg(req.value("Value1").toInt());
+        else if(name == "IpPing") result = QString("Ip=%0").arg(req.value("Value1").toString());
+        else if(name == "Prog") result = QString("Prog= Jour=%0 Heure=%1 Etat=%2").arg(req.value("Value1").toString()).arg(req.value("Value2").toString()).
+                arg(req.value("Value3").toBool() ? "Eco" : "Confort");
+
+        str << result << endl;
+    }
+
+    //Enregistré
+    str << endl << "{TEMPERATURE}" << endl;
+    req.exec("SELECT * FROM CVOrder WHERE Name='Temp'");
+    while(req.next()) {
+        str << (req.value("Value1").toBool() ? "Interieur=" : "Exterieur=") << req.value("Value2").toString() << endl;
+    }
+
+    //Dispo
+    QDir dir;
+    dir.setPath("/sys/bus/w1/devices");
+    QStringList list = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for(int i = 0;i < list.count()-1;i++) {
+        req.exec("SELECT * FROM CVOrder WHERE Name='Temp'");
+        bool exist = false;
+        while(req.next())
+            if(req.value("Value2").toString() == list.at(i))
+            {
+                exist = true;
+                list.removeAt(i);
+                i--;
+            }
+        if(!exist)
+        {
+            QFile f(dir.path() + "/" + list.at(i) + "/w1_slave");
+            if(!f.open(QIODevice::ReadOnly)) {
+                cout << "Echec d'ouverture du fichier" << endl;
+            }
+            else {
+                QString result = f.readAll();
+                str << "Disponible=" << list.at(i) << " (t=" << result.split("=").last().toDouble() / 1000 << " degrés Celcius)" << endl;
+                f.close();
+            }
+        }
+    }
 }
 
 void Configure::GeneralMenu()
