@@ -16,17 +16,22 @@ int main(int argc, char *argv[])
 
     //ARG
     bool srv = false;
+    int confArg = -1;
     for(int i=0;i<qApp->arguments().count();i++)
         if(qApp->arguments().at(i) == "-server")
             srv = true;
+        else if(qApp->arguments().at(i) == "-import")
+            confArg = 1;
+        else if(qApp->arguments().at(i) == "-export")
+            confArg = 0;
 
     bool exit = false;
-    if(srv)
+    if(srv) {
         Interface interface(exit);
-    else {
-        Configure conf;
-        a.exit();
+        return a.exec();
     }
-
-    return a.exec();
+    else {
+        Configure conf(confArg);
+        return 0;
+    }
 }

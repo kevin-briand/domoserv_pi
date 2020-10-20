@@ -23,7 +23,7 @@ class Configure : public QObject
 {
     Q_OBJECT
 public:
-    explicit Configure();
+    explicit Configure(int iofile = 0);
 
     
 signals:
@@ -36,6 +36,7 @@ private:
     quint16 dataSize;
     QString _dataResult;
     void GenerateConfigFile();
+    void ImportConfigFile();
     void GeneralMenu();
     void StateMenu();
     void ConfigMenu();

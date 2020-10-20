@@ -594,7 +594,7 @@ bool CVOrder::PingNetwork()
     return success;
 }
 
-void CVOrder::SetProg(QString date, int zone, int state)
+QString CVOrder::SetProg(QString date, int zone, int state)
 {
     if(date.split("-").count() == 3 && date.split(":").count() == 2)
         if(date.split("-").at(0) == "2018" && date.split("-").at(1) == "01" &&
@@ -605,24 +605,24 @@ void CVOrder::SetProg(QString date, int zone, int state)
                     QSqlQuery req;
                     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' AND Value1='" + date + "' AND Value2='" + QString::number(zone) + "'");
                     if(req.next())
-                        emit Info(className,tr("Prog already exist"));
+                        return tr("Prog already exist");
                     else
                     {
                         req.exec("SELECT MAX(ID) FROM CVOrder");
                         req.next();
                         int id = req.value(0).toInt()+1;
                         req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
-                        emit Info(className,tr("SetProg success"));
+                        return tr("SetProg success");
                     }
                 }
                 else
-                    emit Info(className,tr("SetProg failed(bad state)"));
+                    return tr("SetProg failed(bad state)");
             else
-                emit Info(className,tr("SetProg failed(bad zone)"));
+                return tr("SetProg failed(bad zone)");
         else
-            emit Info(className,tr("SetProg failed(bad date)"));
+            return tr("SetProg failed(bad date)");
     else
-        emit Info(className,tr("SetProg failed(bad date format)"));
+        return tr("SetProg failed(bad date format)");
 }
 
 QString CVOrder::GetProg()
@@ -687,7 +687,7 @@ void CVOrder::SetPriority(int priority)
     }
 }
 
-void CVOrder::AddIp(QString ip)
+QString CVOrder::AddIp(QString ip)
 {
     if(ip.split(".").count() == 4)
     {
@@ -701,7 +701,7 @@ void CVOrder::AddIp(QString ip)
             req.exec("SELECT * FROM CVOrder WHERE Name='IpPing' AND Value1='" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
                      QString::number(sIp3) + "." + QString::number(sIp4) + "'");
             if(req.next())
-                emit Info(className,"AddIp : Ip already exist");
+                return "AddIp : Ip already exist";
             else
             {
                 req.exec("SELECT MAX(ID) FROM CVOrder");
@@ -709,7 +709,7 @@ void CVOrder::AddIp(QString ip)
                 int id = req.value(0).toInt()+1;
                 req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','IpPing','" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
                          QString::number(sIp3) + "." + QString::number(sIp4) + "','','','')");
-                emit Info(className,ip + " added");
+                return ip + " added";
             }
         }
     }

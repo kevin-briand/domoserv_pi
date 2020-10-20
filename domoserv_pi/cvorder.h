@@ -61,10 +61,10 @@ public:
     void InitProg();
     void RemoveProg(int zone, QString date = nullptr);
     void SetPriority(int priority);
-    void SetProg(QString date, int zone, int state);
+    static QString SetProg(QString date, int zone, int state);
     QString GetProg();
     QString GetConfig();
-    void AddIp(QString ip);
+    static QString AddIp(QString ip);
     void RemoveIp(QString ip);
     void SetTimerNetwork(int timer);
     int GetGPIO(int pin);
