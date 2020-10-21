@@ -20,9 +20,15 @@ sudo ./INSTALL
 ## Configuration
 La configuration s'effectue par un import/export du fichier de configuration
 Par défaut le gestionnaire chauffage est inactif
+L'application peut-être lancé sans argument, cela affichera un menu
 
 Création du fichier de configuration(Config.txt)
 ```
 cd $HOME/domoserv_pi/build
 sudo ./domoserv_pi -export
+```
+
+Importation du fichier de configuration
+```
+sudo ./domoserv_pi -import
 ```
