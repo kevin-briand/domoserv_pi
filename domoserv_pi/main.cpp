@@ -28,10 +28,10 @@ int main(int argc, char *argv[])
     bool exit = false;
     if(srv) {
         Interface interface(exit);
-        return a.exec();
     }
     else {
-        Configure conf(confArg);
-        return 0;
+        Configure *conf = new Configure(confArg);
+        //return 0;
     }
+    return a.exec();
 }

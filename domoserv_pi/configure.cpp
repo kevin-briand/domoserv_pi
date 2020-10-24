@@ -143,6 +143,7 @@ void Configure::GenerateConfigFile()
         }
     }
     cout << "Ok\n";
+    GeneralMenu();
 }
 
 void Configure::ImportConfigFile()
@@ -201,6 +202,7 @@ void Configure::ImportConfigFile()
                                          .arg(value.split(" ").last().split("=").last()));
     }
     cout << "Ok\n";
+    GeneralMenu();
 }
 
 void Configure::GeneralMenu()
@@ -210,9 +212,10 @@ void Configure::GeneralMenu()
     list.append("Test");
     list.append("Import");
     list.append("Export");
+    list.append("Scan réseau");
     list.append("Quitter");
 
-    int result = Question(list,5);
+    int result = Question(list,6);
 
     switch (result) {
     case 1:
@@ -228,8 +231,124 @@ void Configure::GeneralMenu()
         GenerateConfigFile();
         break;
     case 5:
+        Scan();
+        break;
+    case 6:
+        qApp->exit();
         break;
     }
+}
+
+void Configure::Scan()
+{
+    static int i = 1;
+    static QString ip = "";
+
+    if(i >= 255) {
+        //Wait all process finished
+        QList<QProcess*> lProc = this->findChildren<QProcess*>();
+        for(int i=0;i<lProc.count();i++) {
+            if(lProc.at(i)->isOpen())
+                return;
+        }
+        static int listCount = 0;
+
+        //All process finished
+        if(i == 255) {
+            listCount = list.count();
+            cout << "END\n";
+            cout << list.count() << " hôtes trouvés\n Déconnectez les appareils utilisés pour le passage en confort puis taper 'y' pour continuer\n";
+            string v;
+            cin >> v;
+            if(v != "y")
+                i = 500;
+        }
+        //Find disconnected host
+        if(i-255+list.count()-listCount < list.count())
+            this->findChildren<QProcess*>().first()->start(QString("ping -c 2 -W 3 %0").arg(list.at(i-255 + list.count()-listCount)));
+        else {
+            cout << list.count() << " hôte(s) deconnecté(s), correct ?\n";
+            string r;
+            cin >> r;
+            if(r == "y") {
+                qDebug() << list;
+                cout << "Souhaitez-vous ajouter les ip à la base de données ?\n";
+                for(QString ip : list) {
+                    cout << ip.toStdString() << "\n";
+                }
+                string v;
+                cin >> v;
+                if(v == "y") {
+                    QSqlQuery req;
+                    for(QString ip : list) {
+                        req.exec("SELECT MAX(ID) FROM General");
+                        req.next();
+                        int id = req.value(0).toInt();
+                        req.exec(QString("INSERT INTO CVOrder VALUES('%0','IpPing','%1','','','')").arg(id+1).arg(ip));
+                    }
+                }
+            }
+            //Reset var
+            for(int i=0;i<lProc.count();i++) {
+                if(lProc.count() == i+1)
+                    connect(lProc.at(i), &QProcess::destroyed, this, &Configure::GeneralMenu);
+                lProc.at(i)->deleteLater();
+            }
+            i = 1;
+            ip.clear();
+        }
+
+        i++;
+        return;
+    }
+
+    //Find ip
+    if(ip.isEmpty()) {
+        for(QHostAddress host : QNetworkInterface::allAddresses()) {
+            if(host.toString().contains("192.168."))
+                ip = host.toString();
+        }
+        ip.remove(ip.count()-ip.split(".").last().count(),ip.count());
+        //Create process
+        for(int i=0;i<5;i++) {
+            QProcess *proc = new QProcess(this);
+            connect(proc, SIGNAL(finished(int)), this, SLOT(endScan(int)));
+        }
+        QTextStream cout(stdout, QIODevice::WriteOnly);
+
+        cout << "Scan en cours...";
+    }
+
+    //Send ping
+    QList<QProcess*> lProc = this->findChildren<QProcess*>();
+    for(int i2=0;i2<lProc.count();i2++) {
+        if(!lProc.at(i2)->isOpen()) {
+            lProc.at(i2)->start(QString("ping -c 2 -W 3 %0").arg(ip + QString::number(i)));
+            i++;
+        }
+    }
+}
+
+void Configure::endScan(int exit)
+{
+    QTextStream cout(stdout, QIODevice::WriteOnly);
+    cout << ".";
+    QByteArray ba = qobject_cast<QProcess*>(sender())->readAll();
+    QString result = ba;
+    QStringList result2 = result.split("\n");
+
+    for(int i2=0;i2<result2.count();i2++)//read output
+        if(result2.at(i2).contains("packets transmitted")) {
+            if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
+            {
+                if(list.contains(result2.first().split(" ").at(1)))
+                    list.removeOne(result2.first().split(" ").at(1));
+                else
+                    list.append(result2.first().split(" ").at(1));
+            }
+        }
+    qobject_cast<QProcess*>(sender())->close();
+    Scan();
 }
 
 void Configure::Test()

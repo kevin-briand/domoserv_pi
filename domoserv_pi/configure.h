@@ -35,9 +35,9 @@ private:
     QWebSocket webSocket;
     quint16 dataSize;
     QString _dataResult;
+    void Scan();
     void GenerateConfigFile();
     void ImportConfigFile();
-    void GeneralMenu();
     void StateMenu();
     void ConfigMenu();
     void ConfigCVOrderMenu();
@@ -51,6 +51,12 @@ private:
     QString DaytoString(int day);
     int inChoice(int min, int max);
     int Question(QStringList Options, int max);
+
+    QStringList list;
+
+private slots:
+    void endScan(int exit);
+    void GeneralMenu();
 
 };
 
