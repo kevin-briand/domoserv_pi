@@ -19,7 +19,6 @@ class Interface : public QObject
     Q_OBJECT
 public:
     Interface(bool &exit);
-    ~Interface();
     bool Test();
     void Init();
 

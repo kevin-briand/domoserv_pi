@@ -134,12 +134,6 @@ Interface::Interface(bool &exit)
     }
 }
 
-Interface::~Interface()
-{
-    server->deleteLater();
-    cvOrder->deleteLater();
-}
-
 bool Interface::Test()
 {
 #ifdef ACT_WIRING_PI_I2C
