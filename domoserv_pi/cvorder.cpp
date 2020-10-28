@@ -577,19 +577,14 @@ bool CVOrder::PingNetwork()
     bool success(false);
     for(int i=0;i<ip.count();i++)
     {
-        proc.start("ping -c 5 " + ip.at(i));
+        proc.start("ping -c 2 " + ip.at(i));
         proc.waitForFinished();
         QByteArray ba = proc.readAll();
-        QString result = ba;
-        QStringList result2 = result.split("\n");
 
-        for(int i2=0;i2<result2.count();i2++)//read output
-            if(result2.at(i2).contains("packets transmitted"))
-                if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
-                {
-                    success = true;
-                    emit Info(className,ip.at(i) + " found on network");
-                }
+        success = (QString(ba).indexOf("ttl") >= 0) ? true : false;
+
+        if(success)
+            emit Info(className,ip.at(i) + " found on network");
     }
     return success;
 }
@@ -713,6 +708,7 @@ QString CVOrder::AddIp(QString ip)
             }
         }
     }
+    return QString("Error : bad ip format");
 }
 
 void CVOrder::RemoveIp(QString ip)

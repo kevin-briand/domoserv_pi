@@ -55,7 +55,7 @@ private:
     QStringList list;
 
 private slots:
-    void endScan(int exit);
+    void endScan();
     void GeneralMenu();
 
 };

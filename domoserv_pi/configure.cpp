@@ -256,7 +256,7 @@ void Configure::Scan()
         //All process finished
         if(i == 255) {
             listCount = list.count();
-            cout << "END\n";
+            cout << "\n";
             cout << list.count() << " hôtes trouvés\n Déconnectez les appareils utilisés pour le passage en confort puis taper 'y' pour continuer\n";
             string v;
             cin >> v;
@@ -312,7 +312,7 @@ void Configure::Scan()
         //Create process
         for(int i=0;i<5;i++) {
             QProcess *proc = new QProcess(this);
-            connect(proc, SIGNAL(finished(int)), this, SLOT(endScan(int)));
+            connect(proc, SIGNAL(finished(int)), this, SLOT(endScan()));
         }
         QTextStream cout(stdout, QIODevice::WriteOnly);
 
@@ -329,24 +329,20 @@ void Configure::Scan()
     }
 }
 
-void Configure::endScan(int exit)
+void Configure::endScan()
 {
     QTextStream cout(stdout, QIODevice::WriteOnly);
     cout << ".";
     QByteArray ba = qobject_cast<QProcess*>(sender())->readAll();
-    QString result = ba;
-    QStringList result2 = result.split("\n");
 
-    for(int i2=0;i2<result2.count();i2++)//read output
-        if(result2.at(i2).contains("packets transmitted")) {
-            if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
-            {
-                if(list.contains(result2.first().split(" ").at(1)))
-                    list.removeOne(result2.first().split(" ").at(1));
-                else
-                    list.append(result2.first().split(" ").at(1));
-            }
-        }
+    if(QString(ba).indexOf("ttl") >= 0) {
+        QString ip = QString(ba).split(" ").at(1);
+        if(list.contains(ip))
+            list.removeOne(ip);
+        else
+            list.append(ip);
+    }
+
     qobject_cast<QProcess*>(sender())->close();
     Scan();
 }

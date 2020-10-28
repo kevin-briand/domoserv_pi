@@ -65,7 +65,7 @@ Interface::Interface(bool &exit)
             req.next();
             int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
 
-            int keySize, codeSize, charset = -1;
+            int keySize(-1), codeSize(-1), charset(-1);
             req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
             if(req.next()) {
                 keySize = req.value("Value1").toInt();
@@ -97,7 +97,7 @@ Interface::Interface(bool &exit)
         req.next();
         int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
 
-        int keySize, codeSize, charset = -1;
+        int keySize(-1), codeSize(-1), charset(-1);
         req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
         if(req.next()) {
             keySize = req.value("Value1").toInt();
@@ -584,4 +584,5 @@ QString Interface::ReadData(QString data, int level)
     {
         return QString("Privilege error");
     }
+    return QString("Data error");
 }
