@@ -481,7 +481,6 @@ void Configure::StateMenu()
     else
     {
         socket = new QTcpSocket;
-        connect(socket,SIGNAL(readyRead()),this,SLOT(Receipt_Data()));
         req.exec("SELECT * FROM General WHERE Name='Port'");
         req.next();
         socket->connectToHost("127.0.0.1",static_cast<quint16>(req.value("Value1").toInt()));
@@ -532,7 +531,6 @@ void Configure::StateMenu()
     else
     {
         socket = new QTcpSocket;
-        connect(socket,SIGNAL(readyRead()),this,SLOT(Receipt_Data()));
         req.exec("SELECT * FROM General WHERE Name='WebPort'");
         req.next();
         socket->connectToHost("127.0.0.1",static_cast<quint16>(req.value("Value1").toInt()));

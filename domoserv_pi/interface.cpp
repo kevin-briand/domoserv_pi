@@ -215,13 +215,17 @@ void Interface::ShowInfo(QString classText, QString text)
         if(!f.open(QIODevice::ReadWrite | QIODevice::Append))
             std::cout << "fail to open file 'log', application need to run as admin\n";
         else {
-            f.write("\n" + result.toLatin1());
+            f.write(result.toLatin1());
             f.seek(0);
             QTextStream str(&f);
             QStringList v = str.readAll().split("\n");
             if(v.count() > 150) {
                 while(v.count() > 150) {
                     v.removeFirst();
+                }
+                f.resize(0);
+                for(QString line : v) {
+                    str << line << endl;
                 }
             }
         }
@@ -287,7 +291,7 @@ QString Interface::ReadData(QString data, int level)
                     }
                     if(ddata.last().contains("GETLog"))
                     {//Format : Config|General;GETLog
-                        QFile f(_linkLog);
+                        QFile f(_linkLog + "domoserv_pi.log");
                         f.open(QIODevice::ReadOnly);
                         return GetLog.arg(QString(f.readAll()));
                     }
