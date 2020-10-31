@@ -19,7 +19,6 @@ class Interface : public QObject
     Q_OBJECT
 public:
     Interface(bool &exit);
-    //~Interface();
     bool Test();
     void Init();
 
@@ -29,6 +28,8 @@ public slots:
     void StartUpdate();
 
 private:
+    QString isError(bool test) { return test ? QString("OK") : QString("Error"); }
+
     QString ReadData(QString data, int level);
     CVOrder *cvOrder;
     ServerFire *server;

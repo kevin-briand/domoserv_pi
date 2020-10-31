@@ -23,7 +23,7 @@ class Configure : public QObject
 {
     Q_OBJECT
 public:
-    explicit Configure();
+    explicit Configure(int iofile = 0);
 
     
 signals:
@@ -35,7 +35,9 @@ private:
     QWebSocket webSocket;
     quint16 dataSize;
     QString _dataResult;
-    void GeneralMenu();
+    void Scan();
+    void GenerateConfigFile();
+    void ImportConfigFile();
     void StateMenu();
     void ConfigMenu();
     void ConfigCVOrderMenu();
@@ -48,6 +50,13 @@ private:
     int DaytoInt(QString day);
     QString DaytoString(int day);
     int inChoice(int min, int max);
+    int Question(QStringList Options, int max);
+
+    QStringList list;
+
+private slots:
+    void endScan();
+    void GeneralMenu();
 
 };
 

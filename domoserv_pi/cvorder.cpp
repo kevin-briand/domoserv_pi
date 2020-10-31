@@ -1,7 +1,5 @@
 #include "cvorder.h"
 
-//Version 1.02
-
 CVOrder::CVOrder()
 {
     #define className "chauffage"
@@ -27,7 +25,7 @@ void CVOrder::Reload()
 
     Init();
 }
-/*
+
 CVOrder::~CVOrder()
 {
     _timerZ1->stop();
@@ -40,7 +38,7 @@ CVOrder::~CVOrder()
     _abs->deleteLater();
     _timerReadInput->stop();
     _timerReadInput->deleteLater();
-}*/
+}
 
 void CVOrder::Init()
 {
@@ -192,8 +190,11 @@ void CVOrder::RunChangeOrder()
         if(_timerZ2 == t)
             zone = Z2;
 
+        //Récupération appartenance timer
         int state = t->property("state").toInt();
+        //Changement de l'état
         ChangeOrder(state,zone);
+        //Redémarrage timer
         NextProgram(zone);
     }
     else//---------------------------
@@ -574,24 +575,19 @@ bool CVOrder::PingNetwork()
     bool success(false);
     for(int i=0;i<ip.count();i++)
     {
-        proc.start("ping -c 5 " + ip.at(i));
+        proc.start("ping -c 2 " + ip.at(i));
         proc.waitForFinished();
         QByteArray ba = proc.readAll();
-        QString result = ba;
-        QStringList result2 = result.split("\n");
 
-        for(int i2=0;i2<result2.count();i2++)//read output
-            if(result2.at(i2).contains("packets transmitted"))
-                if(result2.at(i2).split(" ").at(3).toInt() > 0)//host connected
-                {
-                    success = true;
-                    emit Info(className,ip.at(i) + " found on network");
-                }
+        success = (QString(ba).indexOf("ttl") >= 0) ? true : false;
+
+        if(success)
+            emit Info(className,ip.at(i) + " found on network");
     }
     return success;
 }
 
-void CVOrder::SetProg(QString date, int zone, int state)
+QString CVOrder::SetProg(QString date, int zone, int state)
 {
     if(date.split("-").count() == 3 && date.split(":").count() == 2)
         if(date.split("-").at(0) == "2018" && date.split("-").at(1) == "01" &&
@@ -602,24 +598,24 @@ void CVOrder::SetProg(QString date, int zone, int state)
                     QSqlQuery req;
                     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' AND Value1='" + date + "' AND Value2='" + QString::number(zone) + "'");
                     if(req.next())
-                        emit Info(className,tr("Prog already exist"));
+                        return tr("Prog already exist");
                     else
                     {
                         req.exec("SELECT MAX(ID) FROM CVOrder");
                         req.next();
                         int id = req.value(0).toInt()+1;
                         req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','Prog','" + date + "','" + QString::number(zone) + "','" + QString::number(state) + "','')");
-                        emit Info(className,tr("SetProg success"));
+                        return tr("SetProg success");
                     }
                 }
                 else
-                    emit Info(className,tr("SetProg failed(bad state)"));
+                    return tr("SetProg failed(bad state)");
             else
-                emit Info(className,tr("SetProg failed(bad zone)"));
+                return tr("SetProg failed(bad zone)");
         else
-            emit Info(className,tr("SetProg failed(bad date)"));
+            return tr("SetProg failed(bad date)");
     else
-        emit Info(className,tr("SetProg failed(bad date format)"));
+        return tr("SetProg failed(bad date format)");
 }
 
 QString CVOrder::GetProg()
@@ -631,7 +627,7 @@ QString CVOrder::GetProg()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
     while(req.next())
-        result += ";" + req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
+        result += req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
     return result;
 }
 
@@ -643,7 +639,7 @@ QString CVOrder::GetConfig()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Priority'");
     req.next();
-    QString result = ";" + req.value("Name").toString() + "=" + req.value("Value1").toString();
+    QString result = req.value("Name").toString() + "=" + req.value("Value1").toString();
 
     req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
     req.next();
@@ -684,7 +680,7 @@ void CVOrder::SetPriority(int priority)
     }
 }
 
-void CVOrder::AddIp(QString ip)
+QString CVOrder::AddIp(QString ip)
 {
     if(ip.split(".").count() == 4)
     {
@@ -698,7 +694,7 @@ void CVOrder::AddIp(QString ip)
             req.exec("SELECT * FROM CVOrder WHERE Name='IpPing' AND Value1='" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
                      QString::number(sIp3) + "." + QString::number(sIp4) + "'");
             if(req.next())
-                emit Info(className,"AddIp : Ip already exist");
+                return "AddIp : Ip already exist";
             else
             {
                 req.exec("SELECT MAX(ID) FROM CVOrder");
@@ -706,10 +702,11 @@ void CVOrder::AddIp(QString ip)
                 int id = req.value(0).toInt()+1;
                 req.exec("INSERT INTO CVOrder VALUES('" + QString::number(id) + "','IpPing','" + QString::number(sIp1) + "." + QString::number(sIp2) + "." +
                          QString::number(sIp3) + "." + QString::number(sIp4) + "','','','')");
-                emit Info(className,ip + " added");
+                return ip + " added";
             }
         }
     }
+    return QString("Error : bad ip format");
 }
 
 void CVOrder::RemoveIp(QString ip)
