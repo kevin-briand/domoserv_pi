@@ -1,8 +1,6 @@
 ﻿#include "configure.h"
 #include "cvorder.h"
 
-//Version 1.1
-
 Configure::Configure(int iofile)
 {
     cout << "Connection au serveur..." << endl;

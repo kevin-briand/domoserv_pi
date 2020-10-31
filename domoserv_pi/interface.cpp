@@ -1,7 +1,5 @@
 #include "interface.h"
 
-//Version 1.02
-
 //Admin
 QString GetCVOrder("Config|General;CVOrder=%0");
 QString GetLog("Config|General;GETLog=%0");

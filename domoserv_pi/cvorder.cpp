@@ -1,7 +1,5 @@
 #include "cvorder.h"
 
-//Version 1.02
-
 CVOrder::CVOrder()
 {
     #define className "chauffage"
