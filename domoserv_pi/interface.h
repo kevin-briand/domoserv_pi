@@ -11,8 +11,11 @@
 #include <QDesktopServices>
 #include <configure.h>
 #include "../dep/ServerFire/src/serverfire.h"
+#include <interfacei2c.h>
 
 #define className "General"
+
+#define ACT_WIRING_PI_I2C
 
 class Interface : public QObject
 {

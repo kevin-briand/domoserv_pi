@@ -23,6 +23,9 @@ cd dep
 echo -e ${GREEN}Cloning WiringPi${NC}
 git clone https://github.com/WiringPi/WiringPi.git
 
+echo -e ${GREEN}Cloning bme280${NC}
+git clone https://github.com/firedream89/raspberry-pi-bme280.git
+
 echo -e ${GREEN}Cloning CryptoFire${NC}
 git clone https://github.com/firedream89/CryptoFire.git
 if [ $1 ]; then
@@ -44,7 +47,6 @@ if [ $1 ]; then
         fi
 fi
 
-
 echo -e ${GREEN}Compiling WiringPi${NC}
 cd WiringPi
 sudo ./build
@@ -54,6 +56,12 @@ echo -e ${GREEN}Compiling CryptoFire${NC}
 cd ../lib
 qmake ../dep/CryptoFire/src/
 make
+
+echo -e ${GREEN}Compiling bme280${NC}
+cd ../dep/raspberry-pi-bme280/
+make
+sudo cp bme280 /usr/bin/
+cd ../../lib
 
 echo -e ${GREEN}Compiling ServerFire${NC}
 qmake ../dep/ServerFire/src/

@@ -1,4 +1,11 @@
 #include "interface.h"
+#ifndef Q_OS_WIN
+    #include <../dep/WiringPi/wiringPi/wiringPiI2C.h>
+#include <../dep/WiringPi/wiringPi/wiringPi.h>
+#include <../dep/WiringPi/wiringPi/pcf8574.h>
+#include <../dep/WiringPi/wiringPi/bmp180.h>
+    #define ACT_WIRING_PI
+#endif
 
 //Admin
 QString GetCVOrder("Config|General;CVOrder=%0");
@@ -117,7 +124,7 @@ Interface::Interface(bool &exit)
 
 
         //Gestionnaire chauffage
-        cvOrder = new CVOrder;
+        cvOrder = new CVOrder();
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
         if(req.value("Value1").toBool())
@@ -134,9 +141,6 @@ Interface::Interface(bool &exit)
 
 bool Interface::Test()
 {
-#ifdef ACT_WIRING_PI_I2C
-
-#endif
     return true;
 }
 

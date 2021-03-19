@@ -18,7 +18,8 @@ TEMPLATE = app
 SOURCES += main.cpp \
     configure.cpp \
     cvorder.cpp \
-    interface.cpp
+    interface.cpp \
+    interfacei2c.cpp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings
@@ -34,7 +35,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 HEADERS += \
     configure.h \
     cvorder.h \
-    interface.h
+    interface.h \
+    interfacei2c.h
 
 unix:!macx: LIBS += -L$$PWD/../lib -lServerFire
 
@@ -45,3 +47,6 @@ unix:!macx: LIBS += -L$$PWD/../lib -lCryptoFire
 
 INCLUDEPATH += $$PWD/../lib
 DEPENDPATH += $$PWD/../lib
+
+DISTFILES += \
+    test.py

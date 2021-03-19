@@ -154,6 +154,13 @@ void CVOrder::Init()
     }
 #endif
 
+    //Init I2C
+    emit Info(className,"Init I2C protocol");
+    InterfaceI2C *i2c = new InterfaceI2C(this);
+    i2c->setVersion(qApp->applicationVersion());
+    connect(i2c,&InterfaceI2C::Info,this,&CVOrder::Info);
+    connect(i2c,&InterfaceI2C::InputPressed,this,&CVOrder::I2CInputPressed);
+
     connect(_timerZ1,SIGNAL(timeout()),_timerZ1,SLOT(stop()));
     connect(_timerZ2,SIGNAL(timeout()),_timerZ2,SLOT(stop()));
     connect(_timerZ1,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
@@ -168,6 +175,18 @@ void CVOrder::Init()
 
     InitCPTEnergy();
     InitTemp();
+}
+
+void CVOrder::I2CInputPressed(int input,int screenSelected)
+{
+    if(input == 107) {
+        if(screenSelected == InterfaceI2C::z1) {
+            SetOrder(GetOrder(Z1) == 0 ? 1 : 0,Z1);
+        }
+        else if(screenSelected == InterfaceI2C::z2) {
+            SetOrder(GetOrder(Z2) == 0 ? 1 : 0,Z2);
+        }
+    }
 }
 
 void CVOrder::SetOutputState(int digitalIO, int state)
@@ -203,6 +222,13 @@ void CVOrder::RunChangeOrder()
         {
             if(PingNetwork())
             {
+                //I2C getScan
+                InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+                if(i2c) {
+                    i2c->setScanZone(Z1,false);
+                    i2c->setScanZone(Z2,false);
+                }
+
                 if(_lastStateZ1 == confort)
                     ChangeOrder(confort,Z1);
                 else if(_priority == networkAndHorloge)
@@ -233,6 +259,10 @@ void CVOrder::RunChangeOrder()
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
+                    //I2C getScan
+                    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+                    if(i2c) i2c->setScanZone(zone,true);
+
                     _timerPing->setSingleShot(false);
                     _timerPing->start(req.value("Value2").toInt());
                 }
@@ -331,6 +361,11 @@ void CVOrder::ChangeOrder(int order,int zone)
     //Set Output
     if(order != confort)
         SetOutputState(output,_on);
+
+
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c) i2c->SetOutput(order,zone);
 
     //history
     QSqlQuery req;

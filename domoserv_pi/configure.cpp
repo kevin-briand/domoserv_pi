@@ -106,6 +106,22 @@ void Configure::GenerateConfigFile()
             str << result << endl;
     }
 
+    //I2C
+    str << endl << "{I2C}" << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2C'");
+    req.next();
+    str << QString("Protocol=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2CTemp'");
+    req.next();
+    qDebug() << "t2";
+    str << QString("Température=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2CScreen'");
+    req.next();
+    qDebug() << "t";
+    str << QString("Ecran=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    qDebug() << "end";
+
+
     //Enregistré
     str << endl << "{TEMPERATURE}" << endl;
     req.exec("SELECT * FROM CVOrder WHERE Name='Temp'");
@@ -198,6 +214,10 @@ void Configure::ImportConfigFile()
                                                  value.split("=").at(4).contains("0") ? 0 : 1,value.split("=").last().contains("Confort") ? 0 : 1);
         else if(name == "Temp") req.exec(QString("UPDATE CVOrder SET Value1='%0', Value2='%1' WHERE Name='Temp'").arg(value.split(" ").last().contains("Interieur") ? 0 : 1)
                                          .arg(value.split(" ").last().split("=").last()));
+        else if(name == "Protocol") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2C'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        else if(name == "Température") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CTemp'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        else if(name == "Ecran") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CScreen'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        cout << endl;
     }
     cout << "Ok\n";
     GeneralMenu();
