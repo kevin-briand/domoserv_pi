@@ -14,7 +14,7 @@ sudo apt-get update
 sudo apt-get upgrade -y
 
 echo -e ${GREEN}Installing qt5${NC}
-sudo apt-get install qt5-default libqt5websockets5-dev libqt5sql5-sqlite -y
+sudo apt-get install qt5-default libqt5websockets5-dev libqt5sql5-sqlite python3 -y
 
 mkdir lib
 mkdir dep
