@@ -19,6 +19,7 @@ scanZ2 = 0
 lastScreen = -1
 updTemp = 0
 switchState = 0
+run = 1
 
 def updateData():
     global temp, hum, screen, version, z1, z2, scanZ1, scanZ2
@@ -41,6 +42,8 @@ def updateData():
             scanZ1 = int(line.split("=")[1])
         elif line.find("scanZ2=") != -1:
             scanZ2 = int(line.split("=")[1])
+        elif line.find("Stop") != -1:
+            run = 0
     f.close()
 
 def updateTemp():
@@ -187,7 +190,7 @@ def updateScreen():
         lastScreen = screen        
 
 
-while 1:
+while run == 1:
     updateData()
     updateScreen()
     time.sleep(0.5)

@@ -15,6 +15,8 @@ InterfaceI2C::InterfaceI2C(QObject *parent) : QObject(parent)
 {
     activated = false;
     screen = false;
+    temperature = false;
+
     screenSelected = temp;
     stateZ1 = CONFORT;
     stateZ2 = CONFORT;
@@ -68,7 +70,6 @@ InterfaceI2C::InterfaceI2C(QObject *parent) : QObject(parent)
 
 InterfaceI2C::~InterfaceI2C()
 {
-    activated = false;
     screen = false;
     QProcess *p = this->findChild<QProcess*>("Screen");
     if(p) {
@@ -208,6 +209,7 @@ void InterfaceI2C::isInputPressed()
 
 void InterfaceI2C::InitTemp()
 {
+    temperature = true;
     QTimer *t = new QTimer(this);
     t->setSingleShot(false);
     connect(t,&QTimer::timeout,this,&InterfaceI2C::RunTemp);
@@ -250,6 +252,8 @@ void InterfaceI2C::processFinished()
 
 void InterfaceI2C::InitScreen()
 {
+    UpdatingData();
+
     QProcess *p = new QProcess(this);
     connect(p,QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),this,&InterfaceI2C::restartScreen);
     p->setObjectName("Screen");
@@ -261,7 +265,7 @@ void InterfaceI2C::InitScreen()
 void InterfaceI2C::ChangeScreen()
 {
     QProcess *p = this->findChild<QProcess*>("Screen");
-    screen = false;
+
     if(screenSelected >= 3)
         screenSelected = 0;
     else
@@ -279,7 +283,6 @@ void InterfaceI2C::ChangeScreen()
         if(screenSelected != 0)
             t->start(30000);
 
-        screen = true;
     }
     UpdatingData();
 }
@@ -292,20 +295,25 @@ void InterfaceI2C::restartScreen()
     }
 }
 
-void InterfaceI2C::UpdatingData()
+void InterfaceI2C::UpdatingData(bool close)
 {
     QFile f("/home/pi/domoserv_pi/build/temp.txt");
     f.resize(0);
     if(!f.open(QIODevice::WriteOnly)) return;
     QTextStream str(&f);
-    str << "temp=" << bme280.value("temperature") << endl;
-    str << "hum=" << bme280.value("humidity") << endl;
-    str << "screen=" << screenSelected << endl;
-    str << "z1=" << stateZ1 << endl;
-    str << "z2=" << stateZ2 << endl;
-    str << "scanZ1=" << int(scanZ1) << endl;
-    str << "scanZ2=" << int(scanZ2) << endl;
-    str << "version=" << appVersion;
+    if(close) {
+        str << "Stop";
+    }
+    else {
+        str << "temp=" << bme280.value("temperature") << endl;
+        str << "hum=" << bme280.value("humidity") << endl;
+        str << "screen=" << screenSelected << endl;
+        str << "z1=" << stateZ1 << endl;
+        str << "z2=" << stateZ2 << endl;
+        str << "scanZ1=" << int(scanZ1) << endl;
+        str << "scanZ2=" << int(scanZ2) << endl;
+        str << "version=" << appVersion;
+    }
     f.close();
 }
 

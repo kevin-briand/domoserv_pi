@@ -54,7 +54,7 @@ public:
     void PIDFinished();
     void InitScreen();
     void ChangeScreen();
-    void UpdatingData();
+    void UpdatingData(bool close = false);
     void setVersion(QString version) { appVersion = version; }
     void setScanZone(int zone, bool scan);
 
@@ -71,10 +71,11 @@ signals:
     void InputPressed(int input, int screen);
 
 private:
-    QMap<QString,double> bme280;
     bool screen;
-    int screenSelected;
+    bool temperature;
     bool activated;
+    QMap<QString,double> bme280;
+    int screenSelected;
     int stateZ1;
     int stateZ2;
     QString appVersion;

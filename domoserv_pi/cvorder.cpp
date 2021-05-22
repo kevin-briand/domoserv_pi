@@ -23,6 +23,11 @@ void CVOrder::Reload()
     _lastStateZ1 = 0;
     _lastStateZ2 = 0;
 
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c) {
+        i2c->deleteLater();
+    }
+
     Init();
 }
 
@@ -662,7 +667,7 @@ QString CVOrder::GetProg()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
     while(req.next())
-        result += req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
+        result += ";" + req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
     return result;
 }
 
@@ -1214,6 +1219,17 @@ void CVOrder::AddTempToFile()
             req2.exec("INSERT INTO Temperature VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") +
                      "','" + QTime::currentTime().toString("hh:") + strMinute + "','" + QString::number(emp) + "','" + QString::number(r2 / 10) + "')");
         }
+    }
+
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c) {
+        QSqlQuery req2;
+        req2.exec("SELECT MAX(ID) FROM Temperature");
+        req2.next();
+        int id = req2.value(0).toInt()+1;
+        req.exec("INSERT INTO Temperature VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") +
+                  "','" + QTime::currentTime().toString("hh:") + strMinute + "','" + QString::number(Indoor) + "','" + QString::number(i2c->GetTemp().value("temperature")) + "')");
     }
 }
 

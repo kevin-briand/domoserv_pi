@@ -35,6 +35,11 @@ Configure::Configure(int iofile)
     }
 }
 
+Configure::~Configure()
+{
+
+}
+
 void Configure::GenerateConfigFile()
 {
     cout << "Generate config file...";
@@ -334,6 +339,7 @@ void Configure::Scan()
         }
         QTextStream cout(stdout, QIODevice::WriteOnly);
 
+        cout << "ip :" << ip << endl;
         cout << "Scan en cours...";
     }
 
@@ -341,6 +347,7 @@ void Configure::Scan()
     QList<QProcess*> lProc = this->findChildren<QProcess*>();
     for(int i2=0;i2<lProc.count();i2++) {
         if(!lProc.at(i2)->isOpen()) {
+            cout << "starting process" << endl;
             lProc.at(i2)->start(QString("ping -c 2 -W 3 %0").arg(ip + QString::number(i)));
             i++;
         }

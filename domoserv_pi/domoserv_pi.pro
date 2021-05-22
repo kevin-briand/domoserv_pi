@@ -48,5 +48,4 @@ unix:!macx: LIBS += -L$$PWD/../lib -lCryptoFire
 INCLUDEPATH += $$PWD/../lib
 DEPENDPATH += $$PWD/../lib
 
-DISTFILES += \
-    test.py
+DISTFILES +=
