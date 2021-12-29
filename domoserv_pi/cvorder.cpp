@@ -43,6 +43,9 @@ CVOrder::~CVOrder()
     _abs->deleteLater();
     _timerReadInput->stop();
     _timerReadInput->deleteLater();
+
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    i2c->deleteLater();
 }
 
 void CVOrder::Init()
@@ -172,6 +175,7 @@ void CVOrder::Init()
     connect(_timerZ2,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_timerPing,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_abs,SIGNAL(timeout()),this,SLOT(Reload()));
+
     //Init Prog
     emit Info(className,"Initialisation programmation...");
     InitProg();
@@ -1223,7 +1227,7 @@ void CVOrder::AddTempToFile()
 
     //I2C
     InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
-    if(i2c) {
+    if(i2c && i2c->IsTempActiv()) {
         QSqlQuery req2;
         req2.exec("SELECT MAX(ID) FROM Temperature");
         req2.next();
@@ -1261,24 +1265,48 @@ QString CVOrder::GetDataTemp(QDate first, QDate end)
 QString CVOrder::GetTemp(int emp)
 {
     QSqlQuery req;
-    req.exec("SELECT * FROM CVOrder WHERE Name='Temp' AND Value1='" + QString::number(emp) + "'");
-    if(req.next()) {
-        QFile f("/sys/bus/w1/devices/" + req.value("Value2").toString() + "/w1_slave");
-        if(!f.open(QIODevice::ReadOnly)) {
-            emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
-        }
-        else {
-            req.exec("SELECT Value FROM Temperature WHERE Date='" + QDate::currentDate().toString("yyyy-MM-dd") + "' AND Pos='" + QString::number(emp) + "' ORDER BY Value DESC");
-            req.next();
-            QString max = req.value(0).toString();
-            req.last();
-            QString min = req.value(0).toString();
-
-            QString result = f.readAll();
-            int r = static_cast<int>(result.split("=").last().toDouble() / 100);
-            double r2 = static_cast<double>(r);
-            return QString(min + ":" + max + ":" + QString::number(r2 / 10));
+    double temp = 0;
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(emp == Indoor && i2c && i2c->IsTempActiv()) {
+        temp = i2c->GetTemp().value("temperature");
+    }
+    else {
+        req.exec("SELECT * FROM CVOrder WHERE Name='Temp' AND Value1='" + QString::number(emp) + "'");
+        if(req.next()) {
+            QFile f("/sys/bus/w1/devices/" + req.value("Value2").toString() + "/w1_slave");
+            if(!f.open(QIODevice::ReadOnly)) {
+                emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
+            }
+            else {
+                QString result = f.readAll();
+                int r = static_cast<int>(result.split("=").last().toDouble() / 100);
+                temp = static_cast<double>(r) / 10;
+            }
         }
     }
-    return nullptr;
+
+    req.exec("SELECT Value FROM Temperature WHERE Date='" + QDate::currentDate().toString("yyyy-MM-dd") + "' AND Pos='" + QString::number(emp) + "' ORDER BY Value DESC");
+    req.next();
+    QString max = req.value(0).toString();
+    req.last();
+    QString min = req.value(0).toString();
+
+    return QString(min + ":" + max + ":" + QString::number(temp));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

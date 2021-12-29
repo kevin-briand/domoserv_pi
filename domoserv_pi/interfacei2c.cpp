@@ -210,6 +210,11 @@ void InterfaceI2C::isInputPressed()
 void InterfaceI2C::InitTemp()
 {
     temperature = true;
+
+    //REMOVE 1 WIRE TEMP INDOOR
+    //QSqlQuery req;
+    //req.exec("SELECT * FROM General WHERE ");
+
     QTimer *t = new QTimer(this);
     t->setSingleShot(false);
     connect(t,&QTimer::timeout,this,&InterfaceI2C::RunTemp);

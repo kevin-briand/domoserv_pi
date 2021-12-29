@@ -220,7 +220,9 @@ void Configure::ImportConfigFile()
         else if(name == "Temp") req.exec(QString("UPDATE CVOrder SET Value1='%0', Value2='%1' WHERE Name='Temp'").arg(value.split(" ").last().contains("Interieur") ? 0 : 1)
                                          .arg(value.split(" ").last().split("=").last()));
         else if(name == "Protocol") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2C'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
-        else if(name == "Température") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CTemp'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        else if(name == "Température") { qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CTemp'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+            if(value.split("=").last().contains("TRUE")) req.exec("DELETE FROM CVOrder WHERE Name='Temp' AND Value1='0'");//Remove 1 wire Indoor
+        }
         else if(name == "Ecran") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CScreen'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
         cout << endl;
     }

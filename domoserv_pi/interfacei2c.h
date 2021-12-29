@@ -57,6 +57,8 @@ public:
     void UpdatingData(bool close = false);
     void setVersion(QString version) { appVersion = version; }
     void setScanZone(int zone, bool scan);
+    bool IsTempActiv() { return temperature; }
+    bool IsScreenActiv() { return screen; }
 
 private slots:
     void RunTemp();
