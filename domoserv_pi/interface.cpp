@@ -1,4 +1,11 @@
 #include "interface.h"
+#ifndef Q_OS_WIN
+    #include <../dep/WiringPi/wiringPi/wiringPiI2C.h>
+#include <../dep/WiringPi/wiringPi/wiringPi.h>
+#include <../dep/WiringPi/wiringPi/pcf8574.h>
+#include <../dep/WiringPi/wiringPi/bmp180.h>
+    #define ACT_WIRING_PI
+#endif
 
 //Admin
 QString GetCVOrder("Config|General;CVOrder=%0");
@@ -14,6 +21,7 @@ QString GetUserPort("Config|Server;GETWebPort;WebPort=%0");
 QString GetUserPassword("Config|Server;GetWebPassword;WebPassword=%0");
 QString GetAdminCrypto("Config|Server;GetAdminCrypto=%0;%1;%2");
 QString GetUserCrypto("Config|Server;GetUserCrypto=%0;%1;%2");
+QString GetI2C("Config|CVOrder;GetI2C=%0;%1;%2");
 
 //User
 QString GetZOrder("CVOrder|GetZ%0Order=%1");
@@ -96,7 +104,7 @@ Interface::Interface(bool &exit)
         int type = req.value(0).toBool() ? GlobalServer::Web : GlobalServer::TCP;
 
         int keySize(-1), codeSize(-1), charset(-1);
-        req.exec("SELECT * FROM General WHERE Name='AdminCrypto'");
+        req.exec("SELECT * FROM General WHERE Name='UserCrypto'");
         if(req.next()) {
             keySize = req.value("Value1").toInt();
             codeSize = req.value("Value2").toInt();
@@ -117,7 +125,7 @@ Interface::Interface(bool &exit)
 
 
         //Gestionnaire chauffage
-        cvOrder = new CVOrder;
+        cvOrder = new CVOrder();
         req.exec("SELECT * FROM General WHERE Name='CVOrder'");
         req.next();
         if(req.value("Value1").toBool())
@@ -132,11 +140,15 @@ Interface::Interface(bool &exit)
     }
 }
 
+Interface::~Interface()
+{
+    server->StopServers();
+    cvOrder->deleteLater();
+    server->deleteLater();
+}
+
 bool Interface::Test()
 {
-#ifdef ACT_WIRING_PI_I2C
-
-#endif
     return true;
 }
 
@@ -244,11 +256,9 @@ void Interface::ReceiptDataFromServer(QString client, QString data)
 {
     if(data.contains("Reload"))
     {
-        QSqlQuery req;
-        req.exec("SELECT * FROM General WHERE Name='CVOrder'");
-        req.next();
-        if(req.value("Value1").toBool())
-            cvOrder->Reload();
+        qApp->exit(0);
+        //QProcess proc;
+        //proc.startDetached("sudo service domoserv_pi restart");
     }
     else
     {
@@ -328,9 +338,26 @@ QString Interface::ReadData(QString data, int level)
 
                         return GetGPIO + result;
                     }
+                    else if(ddata.last().contains(";GetI2C"))
+                    {
+                        int i2c(0), temp(0), screen(0);
+                        req.exec("SELECT Value1 FROM General WHERE Name='I2C'");
+                        if(req.next())
+                            i2c = req.value(0).toInt();
+
+                        req.exec("SELECT Value1 FROM General WHERE Name='I2CScreen'");
+                        if(req.next())
+                            screen = req.value(0).toInt();
+
+                        req.exec("SELECT Value1 FROM General WHERE Name='I2CTemp'");
+                        if(req.next())
+                            temp = req.value(0).toInt();
+
+                        return GetI2C.arg(i2c).arg(screen).arg(temp);
+                    }
                     //SET
                     else if(ddata.last().contains(";SETProg"))
-                    {//Format : Config|CVOrder;SETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh:mm#zone#state
+                    {//Format : Config|CVOrder;SETProg;yyyy-MM-dd hh:mm#zone#state;yyyy-MM-dd hh1:mm#zone#state
                         QStringList result = ddata.last().split(";");
                         result.removeFirst();
                         result.removeFirst();
@@ -388,6 +415,27 @@ QString Interface::ReadData(QString data, int level)
                         }
                         return QString("OK");
                     }
+                    else if(ddata.last().contains(";SetI2C"))
+                    {
+                        QStringList list = ddata.last().split("=").last().split(";");
+                        req.exec("SELECT * FROM General WHERE Name='I2C'");
+                        if(req.exec()) {
+                            req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2C'").arg(list.at(0)));
+                            req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CScreen'").arg(list.at(1)));
+                            req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CTemp'").arg(list.at(2)));
+                        }
+                        else {
+                            req.exec("SELECT MAX(ID) FROM General");
+                            req.next();
+                            int id = req.value(0).toInt() + 1;
+                            req.exec(QString("INSERT INTO General VALUES('" + QString::number(id) + "','I2C','0','32','','')"));
+                            id++;
+                            req.exec(QString("INSERT INTO General VALUES('" + QString::number(id) + "','I2CScreen','0','','','')"));
+                            id++;
+                            req.exec(QString("INSERT INTO General VALUES('" + QString::number(id) + "','I2CTemp','0','','','')"));
+                        }
+                    }
+                    return QString("OK");
                 }
                 //Server
                 if(ddata.last().contains("Server"))

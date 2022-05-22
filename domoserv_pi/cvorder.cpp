@@ -23,6 +23,11 @@ void CVOrder::Reload()
     _lastStateZ1 = 0;
     _lastStateZ2 = 0;
 
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c) {
+        i2c->deleteLater();
+    }
+
     Init();
 }
 
@@ -38,6 +43,9 @@ CVOrder::~CVOrder()
     _abs->deleteLater();
     _timerReadInput->stop();
     _timerReadInput->deleteLater();
+
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    i2c->deleteLater();
 }
 
 void CVOrder::Init()
@@ -154,12 +162,20 @@ void CVOrder::Init()
     }
 #endif
 
+    //Init I2C
+    emit Info(className,"Init I2C protocol");
+    InterfaceI2C *i2c = new InterfaceI2C(this);
+    i2c->setVersion(qApp->applicationVersion());
+    connect(i2c,&InterfaceI2C::Info,this,&CVOrder::Info);
+    connect(i2c,&InterfaceI2C::InputPressed,this,&CVOrder::I2CInputPressed);
+
     connect(_timerZ1,SIGNAL(timeout()),_timerZ1,SLOT(stop()));
     connect(_timerZ2,SIGNAL(timeout()),_timerZ2,SLOT(stop()));
     connect(_timerZ1,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_timerZ2,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_timerPing,SIGNAL(timeout()),this,SLOT(RunChangeOrder()));
     connect(_abs,SIGNAL(timeout()),this,SLOT(Reload()));
+
     //Init Prog
     emit Info(className,"Initialisation programmation...");
     InitProg();
@@ -168,6 +184,18 @@ void CVOrder::Init()
 
     InitCPTEnergy();
     InitTemp();
+}
+
+void CVOrder::I2CInputPressed(int input,int screenSelected)
+{
+    if(input == 107) {
+        if(screenSelected == InterfaceI2C::z1) {
+            SetOrder(GetOrder(Z1) == 0 ? 1 : 0,Z1);
+        }
+        else if(screenSelected == InterfaceI2C::z2) {
+            SetOrder(GetOrder(Z2) == 0 ? 1 : 0,Z2);
+        }
+    }
 }
 
 void CVOrder::SetOutputState(int digitalIO, int state)
@@ -203,6 +231,13 @@ void CVOrder::RunChangeOrder()
         {
             if(PingNetwork())
             {
+                //I2C getScan
+                InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+                if(i2c) {
+                    i2c->setScanZone(Z1,false);
+                    i2c->setScanZone(Z2,false);
+                }
+
                 if(_lastStateZ1 == confort)
                     ChangeOrder(confort,Z1);
                 else if(_priority == networkAndHorloge)
@@ -233,6 +268,10 @@ void CVOrder::RunChangeOrder()
                 req.exec("SELECT * FROM CVOrder WHERE Name='Act_Network'");
                 if(req.next())
                 {
+                    //I2C getScan
+                    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+                    if(i2c) i2c->setScanZone(zone,true);
+
                     _timerPing->setSingleShot(false);
                     _timerPing->start(req.value("Value2").toInt());
                 }
@@ -331,6 +370,11 @@ void CVOrder::ChangeOrder(int order,int zone)
     //Set Output
     if(order != confort)
         SetOutputState(output,_on);
+
+
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c) i2c->SetOutput(order,zone);
 
     //history
     QSqlQuery req;
@@ -627,7 +671,7 @@ QString CVOrder::GetProg()
     QSqlQuery req;
     req.exec("SELECT * FROM CVOrder WHERE Name='Prog' ORDER BY Value1 ASC");
     while(req.next())
-        result += req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
+        result += ";" + req.value("Value1").toString() + "#" + req.value("Value2").toString() + "#" + req.value("Value3").toString();
     return result;
 }
 
@@ -1180,6 +1224,17 @@ void CVOrder::AddTempToFile()
                      "','" + QTime::currentTime().toString("hh:") + strMinute + "','" + QString::number(emp) + "','" + QString::number(r2 / 10) + "')");
         }
     }
+
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(i2c && i2c->IsTempActiv()) {
+        QSqlQuery req2;
+        req2.exec("SELECT MAX(ID) FROM Temperature");
+        req2.next();
+        int id = req2.value(0).toInt()+1;
+        req.exec("INSERT INTO Temperature VALUES('" + QString::number(id) + "','" + QDate::currentDate().toString("yyyy-MM-dd") +
+                  "','" + QTime::currentTime().toString("hh:") + strMinute + "','" + QString::number(Indoor) + "','" + QString::number(i2c->GetTemp().value("temperature")) + "')");
+    }
 }
 
 QString CVOrder::GetDataOrder(QDate first, QDate end)
@@ -1210,24 +1265,48 @@ QString CVOrder::GetDataTemp(QDate first, QDate end)
 QString CVOrder::GetTemp(int emp)
 {
     QSqlQuery req;
-    req.exec("SELECT * FROM CVOrder WHERE Name='Temp' AND Value1='" + QString::number(emp) + "'");
-    if(req.next()) {
-        QFile f("/sys/bus/w1/devices/" + req.value("Value2").toString() + "/w1_slave");
-        if(!f.open(QIODevice::ReadOnly)) {
-            emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
-        }
-        else {
-            req.exec("SELECT Value FROM Temperature WHERE Date='" + QDate::currentDate().toString("yyyy-MM-dd") + "' AND Pos='" + QString::number(emp) + "' ORDER BY Value DESC");
-            req.next();
-            QString max = req.value(0).toString();
-            req.last();
-            QString min = req.value(0).toString();
-
-            QString result = f.readAll();
-            int r = static_cast<int>(result.split("=").last().toDouble() / 100);
-            double r2 = static_cast<double>(r);
-            return QString(min + ":" + max + ":" + QString::number(r2 / 10));
+    double temp = 0;
+    //I2C
+    InterfaceI2C *i2c = this->findChild<InterfaceI2C*>();
+    if(emp == Indoor && i2c && i2c->IsTempActiv()) {
+        temp = i2c->GetTemp().value("temperature");
+    }
+    else {
+        req.exec("SELECT * FROM CVOrder WHERE Name='Temp' AND Value1='" + QString::number(emp) + "'");
+        if(req.next()) {
+            QFile f("/sys/bus/w1/devices/" + req.value("Value2").toString() + "/w1_slave");
+            if(!f.open(QIODevice::ReadOnly)) {
+                emit Info(className,"Echec d'ouverture du fichier " + f.fileName());
+            }
+            else {
+                QString result = f.readAll();
+                int r = static_cast<int>(result.split("=").last().toDouble() / 100);
+                temp = static_cast<double>(r) / 10;
+            }
         }
     }
-    return nullptr;
+
+    req.exec("SELECT Value FROM Temperature WHERE Date='" + QDate::currentDate().toString("yyyy-MM-dd") + "' AND Pos='" + QString::number(emp) + "' ORDER BY Value DESC");
+    req.next();
+    QString max = req.value(0).toString();
+    req.last();
+    QString min = req.value(0).toString();
+
+    return QString(min + ":" + max + ":" + QString::number(temp));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

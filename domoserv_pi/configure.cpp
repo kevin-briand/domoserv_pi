@@ -35,6 +35,11 @@ Configure::Configure(int iofile)
     }
 }
 
+Configure::~Configure()
+{
+
+}
+
 void Configure::GenerateConfigFile()
 {
     cout << "Generate config file...";
@@ -105,6 +110,22 @@ void Configure::GenerateConfigFile()
         if(!result.isEmpty())
             str << result << endl;
     }
+
+    //I2C
+    str << endl << "{I2C}" << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2C'");
+    req.next();
+    str << QString("Protocol=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2CTemp'");
+    req.next();
+    qDebug() << "t2";
+    str << QString("Température=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    req.exec("SELECT * FROM General WHERE Name='I2CScreen'");
+    req.next();
+    qDebug() << "t";
+    str << QString("Ecran=%0").arg(req.value("Value1").toBool() ? "TRUE" : "FALSE") << endl;
+    qDebug() << "end";
+
 
     //Enregistré
     str << endl << "{TEMPERATURE}" << endl;
@@ -198,6 +219,12 @@ void Configure::ImportConfigFile()
                                                  value.split("=").at(4).contains("0") ? 0 : 1,value.split("=").last().contains("Confort") ? 0 : 1);
         else if(name == "Temp") req.exec(QString("UPDATE CVOrder SET Value1='%0', Value2='%1' WHERE Name='Temp'").arg(value.split(" ").last().contains("Interieur") ? 0 : 1)
                                          .arg(value.split(" ").last().split("=").last()));
+        else if(name == "Protocol") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2C'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        else if(name == "Température") { qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CTemp'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+            if(value.split("=").last().contains("TRUE")) req.exec("DELETE FROM CVOrder WHERE Name='Temp' AND Value1='0'");//Remove 1 wire Indoor
+        }
+        else if(name == "Ecran") qDebug() << req.exec(QString("UPDATE General SET Value1='%0' WHERE Name='I2CScreen'").arg(value.split("=").last().contains("TRUE") ? 1 : 0));
+        cout << endl;
     }
     cout << "Ok\n";
     GeneralMenu();
@@ -314,6 +341,7 @@ void Configure::Scan()
         }
         QTextStream cout(stdout, QIODevice::WriteOnly);
 
+        cout << "ip :" << ip << endl;
         cout << "Scan en cours...";
     }
 
@@ -321,6 +349,7 @@ void Configure::Scan()
     QList<QProcess*> lProc = this->findChildren<QProcess*>();
     for(int i2=0;i2<lProc.count();i2++) {
         if(!lProc.at(i2)->isOpen()) {
+            cout << "starting process" << endl;
             lProc.at(i2)->start(QString("ping -c 2 -W 3 %0").arg(ip + QString::number(i)));
             i++;
         }

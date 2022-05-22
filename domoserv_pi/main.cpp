@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
         else if(qApp->arguments().at(i) == "-export")
             confArg = 0;
 
+    //a.setApplicationVersion("1.3");
+
     bool exit = false;
     if(srv) {
         Interface interface(exit);
@@ -32,6 +34,7 @@ int main(int argc, char *argv[])
     }
     else {
         new Configure(confArg);
+        return -1;
     }
 
 }

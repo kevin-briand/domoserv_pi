@@ -23,13 +23,9 @@ class Configure : public QObject
 {
     Q_OBJECT
 public:
-    explicit Configure(int iofile = 0);
+    Configure(int iofile = 0);
+    ~Configure();
 
-    
-signals:
-
-public slots:
-    
 private:
     QTcpSocket *socket;
     QWebSocket webSocket;

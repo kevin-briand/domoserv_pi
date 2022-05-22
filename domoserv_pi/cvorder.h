@@ -7,11 +7,14 @@
 #include <QSqlQuery>
 #include <QProcess>
 #include <QtDBus/QtDBus>
+#include <interfacei2c.h>
 
 #ifndef Q_OS_WIN
     #include <../dep/WiringPi/wiringPi/wiringPi.h>
     #define ACT_WIRING_PI
 #endif
+
+#include <interfacei2c.h>
 
 //Zone
 #define Z1  0
@@ -100,6 +103,7 @@ private slots:
     void AddImp();
     void TestInput();
     void AddTempToFile();
+    void I2CInputPressed(int intput, int screenSelected);
 
 signals:
     void Info(QString textClass, QString text);
