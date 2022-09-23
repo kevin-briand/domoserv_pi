@@ -1,8 +1,6 @@
 # domoserv_pi
 Gestionnaire chauffage pour raspberry pi
 
-/!\ Je ne peux être tenu pour responsable de tout endommagement de vôtre raspberry !
-
 ## Cablage
 ![Domoserv_pi Wiring](https://i.postimg.cc/rpbB0h7N/domoserv-pi-wiring.png)
 
